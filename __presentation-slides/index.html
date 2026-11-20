@@ -356,6 +356,606 @@
 * [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), [CoderPad](https://coderpad.io/) if handed them <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Foundations first, optional interview add-on, then applied designs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Next: Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Qualities every later path is judged by <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Numbers attached, not slogans <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Tools-heavy; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw in [Excalidraw](https://excalidraw.com/); name products when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* You cannot maximize every quality at once <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter: Networking, Protocols, and Web Concepts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Large-Scale Means <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What Large-Scale Means <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Not a user-count trophy <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One box, one disk, or one failure domain is no longer the whole story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Load, data, failure domain, geography <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Write QPS, data size, and the region story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Large-Scale Means <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Load: one [Amazon EC2](https://aws.amazon.com/ec2/) size or [Google Compute Engine](https://cloud.google.com/compute) type stops being enough <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Data: blobs in [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Failure domain: [AWS Regions and Availability Zones](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Maps: [Google Cloud locations](https://cloud.google.com/about/locations), [Azure geographies](https://azure.microsoft.com/explore/global-infrastructure/geographies/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Geography: [Cloudflare](https://www.cloudflare.com/) or [Amazon CloudFront](https://aws.amazon.com/cloudfront/) is a location story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Large-Scale Means <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Not "we will have a million users" <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a reason to draw [Kubernetes](https://kubernetes.io/) first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a reason to skip the single-box design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Large-scale starts when a bigger box cannot fix it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Scalability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Scalability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The path still meets its qualities as load and data grow <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Vertical: a bigger box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Horizontal: more boxes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* They are not synonyms, and they are not equally cheap <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Scalability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Vertical catalog: [Amazon EC2](https://aws.amazon.com/ec2/), [Google Compute Engine](https://cloud.google.com/compute), [Azure Virtual Machines](https://azure.microsoft.com/products/virtual-machines) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Horizontal catalog: [AWS Auto Scaling](https://aws.amazon.com/autoscaling/), [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Front door: [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Software: [NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Say which lever, why the other is worse here, and what state is shared <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Vertical Scaling <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Vertical Scaling <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Scale up: more CPU, RAM, disk, IOPS on the same component <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One [PostgreSQL](https://www.postgresql.org/) primary on a larger [Amazon RDS](https://aws.amazon.com/rds/) instance <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Application does not change <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Often cheaper at small scale than two boxes plus [Redis](https://redis.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Vertical Scaling <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Every family has a largest size <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A single-writer datastore still serializes hot rows <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Bigger box, bigger blast radius <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One box to watch in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), [Google Cloud Monitoring](https://cloud.google.com/monitoring), or [Azure Monitor](https://azure.microsoft.com/products/monitor) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Scale up until the next size is worse; then scale out <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Horizontal Scaling <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Horizontal Scaling <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Scale out: more instances of the same role <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A front door that health-checks <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* State shared or partitioned on purpose: [Redis](https://redis.io/), [Amazon ElastiCache](https://aws.amazon.com/elasticache/), [PostgreSQL](https://www.postgresql.org/), [Amazon S3](https://aws.amazon.com/s3/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Sticky sessions are a patch, not a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Horizontal Scaling <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [AWS Auto Scaling](https://aws.amazon.com/autoscaling/): add/remove VMs from a metric <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/): replica count on [Kubernetes](https://kubernetes.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a reason to introduce [Kubernetes](https://kubernetes.io/) just to scale <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Does not fix a hot key, a chatty database, or local-disk uploads <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Scale out the stateless hop first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Performance vs Scalability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Performance vs Scalability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Performance: how the path behaves at a given load <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Scalability: whether those numbers survive growth <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fast can be unscalable; scalable can be slow <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A single [Redis](https://redis.io/) can be extremely fast and still one failure domain <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Performance vs Scalability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Hold load constant and make one request faster: performance <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Indexes, a [Redis](https://redis.io/) TTL, a [Cloudflare](https://www.cloudflare.com/) cache, fewer hops <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hold the code constant and add resources: scalability <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Bigger [Amazon RDS](https://aws.amazon.com/rds/) or more replicas behind [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kubernetes](https://kubernetes.io/) does not invent a shard key <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fast ≠ scalable; say which one you are fixing <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Availability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Availability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Whether the path answers when a client asks <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Time-based: uptime / (uptime + downtime) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Yield-based: successful requests / valid requests <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Site Reliability Engineering](https://sre.google/sre-book/table-of-contents/) prefers yield for multi-replica services <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Embracing Risk](https://sre.google/sre-book/embracing-risk/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Availability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* A slow 200 may still count as available <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Write the definition before you quote a percentage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Vendor SLAs: [AWS Service Level Agreements](https://aws.amazon.com/legal/service-level-agreements/), [Google Cloud SLAs](https://cloud.google.com/terms/sla), [Azure SLAs](https://www.microsoft.com/licensing/docs/view/Service-Level-Agreements-SLA-for-Online-Services) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Those are their hops, not your composed path <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### The Nines of Availability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### The Nines of Availability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Each extra nine is ~10× less allowed downtime <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Sheet: [Google SRE availability table](https://sre.google/sre-book/availability-table/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* 99% (two nines): 3.65 days / year <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* 99.9% (three nines): 8.76 hours / year <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* 99.99% (four nines): 52.6 minutes / year <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* 99.999% (five nines): 5.26 minutes / year <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### The Nines of Availability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* 100% is not a target — [Embracing Risk](https://sre.google/sre-book/embracing-risk/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Error budget = 1 − SLO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Service Level Objectives](https://sre.google/sre-book/service-level-objectives/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Spend the budget on purpose; hide it and you spend it on accidents <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Each extra nine is an architecture change <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Availability in Sequence vs Parallel <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Availability in Sequence vs Parallel <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Sequence multiplies: A × B × C <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Three hops at 99.9% ≈ 99.7% together <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Every extra synchronous dependency is a haircut <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Parallel recovers: two 99% replicas ≈ 99.99% if independent <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Availability in Sequence vs Parallel <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Independent means separate hosts, preferably separate [AWS Availability Zones](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Same for [Google Cloud locations](https://cloud.google.com/about/locations) and [Azure geographies](https://azure.microsoft.com/explore/global-infrastructure/geographies/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Health checks: [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Kubernetes probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/), [Amazon Route 53](https://aws.amazon.com/route53/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Shared fate is still sequence, even if you drew two boxes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### High Availability vs Fault Tolerance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### High Availability vs Fault Tolerance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* HA: the path keeps answering through planned failures <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/), two API replicas, a load balancer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* FT: the answer stays correct while something is actually broken <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HA may accept a brief blip; FT spends more money and coordination <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### High Availability vs Fault Tolerance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Checklists mix the words: [AWS Well-Architected Reliability Pillar](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Google Cloud Architecture Framework](https://cloud.google.com/architecture/framework), [Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* On the sketch: what dies, what still serves, is the answer still correct <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Buy HA and FT separately <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Fault Tolerance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Fault Tolerance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The story when a component dies, hangs, or lies <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name the component and its failure domain <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Say what the client sees <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Say what brings the path back <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Fault Tolerance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Prove it in telemetry: [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/), [Datadog](https://www.datadoghq.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), [OpenTelemetry](https://opentelemetry.io/) traces <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A failover you cannot see did not happen <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Single Points of Failure <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Single Points of Failure <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* A component whose death takes the path with it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One [PostgreSQL](https://www.postgresql.org/) primary; one [Redis](https://redis.io/) with no fallback <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One zone; one [Amazon S3](https://aws.amazon.com/s3/) region if that region *is* the product <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Kill every box on the sketch <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Single Points of Failure <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Shared fate counts: two app boxes in one zone are one zone SPOF <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Control planes count: DNS, CI, credentials <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Remove it, shrink blast radius, or name it on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) hides a disk and leaves a failover window <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [S3 Replication](https://aws.amazon.com/s3/features/replication/) is how [Amazon S3](https://aws.amazon.com/s3/) becomes multi-region <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Failover and Redundancy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Failover and Redundancy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Redundancy: extra capacity that can do the same job <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Failover: the act of using it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A replica that is actually ready <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A detector, a mover, a client that survives the move <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Failover and Redundancy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/): standby in another zone, automatic failover <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cache analog: [Redis](https://redis.io/) plus [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/), or [Amazon ElastiCache](https://aws.amazon.com/elasticache/) Multi-AZ <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Detector: load balancer health, [Kubernetes probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/), [Amazon Route 53](https://aws.amazon.com/route53/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Mover: [Google Cloud DNS](https://cloud.google.com/dns), [Azure Traffic Manager](https://azure.microsoft.com/products/traffic-manager), [Cloudflare](https://www.cloudflare.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* DNS TTL is part of the RTO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Failover and Redundancy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Retries with backoff; idempotent writes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Infinite retries turn one fault into a cascade <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Practice it: restore a backup, kill a replica <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [AWS Fault Injection Service](https://aws.amazon.com/fis/) so you do not wait for a real zone <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A runbook you never ran is a story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Active-Active vs Active-Passive <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Active-Active vs Active-Passive <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Active-passive: one side serves; the other takes over <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) is this shape <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hot standby beats a cold snapshot for RTO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* You pay for the standby the whole time; you get one writer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Active-Active vs Active-Passive <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Active-active: both sides take traffic <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Easy: stateless APIs behind [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hard: multi-region writes — [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) [global tables](https://aws.amazon.com/dynamodb/global-tables/), multi-primary [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Stateless hops want active-active <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Stateful hops start active-passive with a tested failover <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Reliability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Reliability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Correct over time, not only reachable <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Up and charging twice is available and not reliable <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Site Reliability Engineering](https://sre.google/sre-book/table-of-contents/): error budgets and SLIs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Measure in [Prometheus](https://prometheus.io/), [Datadog](https://www.datadoghq.com/), [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Availability vs Reliability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Availability vs Reliability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Availability: did the path answer? <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Reliability: was the answer right, complete, on contract? <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Stale cache 200: available, maybe acceptable, not "the write succeeded" <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A queue that accepts then drops: 202, work never happened <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Availability vs Reliability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Replica 15 minutes behind: available reads, wrong reads <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Durability ≠ availability <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon S3](https://aws.amazon.com/s3/) eleven nines is "the object is still there," not "GET always works" <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Up ≠ correct; write both; measure both <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### SLA, SLO, and SLI <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### SLA, SLO, and SLI <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* SLI: the thing you measure — [Service Level Objectives](https://sre.google/sre-book/service-level-objectives/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Implement it in [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/), [Datadog](https://www.datadoghq.com/), [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Also [Google Cloud Monitoring](https://cloud.google.com/monitoring), [Azure Monitor](https://azure.microsoft.com/products/monitor), [OpenTelemetry](https://opentelemetry.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If you cannot query it, it is not an SLI <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### SLA, SLO, and SLI <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* SLO: internal target plus error budget <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Implementing SLOs](https://sre.google/workbook/implementing-slos/) in the [SRE Workbook](https://sre.google/workbook/table-of-contents/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* SLA: external contract; looser than the SLO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Vendor contracts: [AWS Service Level Agreements](https://aws.amazon.com/legal/service-level-agreements/), [Google Cloud SLAs](https://cloud.google.com/terms/sla), [Azure SLAs](https://www.microsoft.com/licensing/docs/view/Service-Level-Agreements-SLA-for-Online-Services) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [PagerDuty](https://www.pagerduty.com/) for budget-threatening faults, not every 5xx <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Never let a vendor SLA stand in for your SLO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* What users feel as delay; what operators feel as capacity <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a synonym for scalability <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fast at 1k QPS can fall over at 2k <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Latency, throughput, bandwidth, then the tail, then physical numbers <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Latency vs Throughput vs Bandwidth <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Latency vs Throughput vs Bandwidth <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Latency: time for one unit of work (ms) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Throughput: units per time (QPS, RPS) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Bandwidth: raw volume per time (Gbps, MB/s) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* 1 Gbps ≈ 125 MB/s; that is not 125k QPS unless each request is 1 KB <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Latency vs Throughput vs Bandwidth <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Batching raises throughput and usually raises first-item latency — [Apache Kafka](https://kafka.apache.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* More in-flight work raises throughput until queues explode <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Cloudflare](https://www.cloudflare.com/) / [Amazon CloudFront](https://aws.amazon.com/cloudfront/) cuts hit latency and origin bandwidth <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "Make it faster" is not a requirement <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "p99 GET under 200 ms at 5k QPS" is <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Tail Latency and Percentiles <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Tail Latency and Percentiles <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The mean is a liar <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* p50: typical; p95 / p99 / p99.9: the tail you SLO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* GC, compaction, noisy neighbor, cold cache, lock, slow disk <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fan-out takes the slowest of N backends <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Tail Latency and Percentiles <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Retries without jitter turn a tail into a stampede <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Measure histograms: [Prometheus](https://prometheus.io/), [Datadog](https://www.datadoghq.com/), [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Traces: [OpenTelemetry](https://opentelemetry.io/); pictures: [Grafana](https://grafana.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* SLO the tail, not the mean <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If the request fans out, the tail is the product <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Numbers Worth Memorizing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Numbers Worth Memorizing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Jeff Dean / Peter Norvig orders of magnitude <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Chart: [Colin Scott's latency visualization](https://colin-scott.github.io/personal_website/research/interactive_latency.html) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Notes: [Peter Norvig](https://norvig.com/21-days.html#answers) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Gaps matter more than the last digit <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Numbers Worth Memorizing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Memory reference ~ 100 ns; SSD random ~ 0.1 ms; disk seek ~ 10 ms <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Same-datacenter RTT ~ 0.5 ms; CA ↔ Europe ~ 100–150 ms <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Redis](https://redis.io/) vs disk-backed [PostgreSQL](https://www.postgresql.org/) is a 100×–1000× gap <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cross-region on the read path pays WAN before you wrote code <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Write the order of magnitude on the arrow <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Disaster Recovery <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Disaster Recovery <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* A failure domain you do not fail over *inside* of <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Region, provider, corrupted dataset, bad deploy that ate the data <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HA in one zone is not DR <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [AWS Well-Architected Reliability Pillar](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Google Cloud Architecture Framework](https://cloud.google.com/architecture/framework), [Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### RPO, RTO, and Backup Strategies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### RPO, RTO, and Backup Strategies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* RPO: how much data you can lose (time) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* RTO: how long the path can stay down or wrong <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hours/hours: snapshots — [AWS Backup](https://aws.amazon.com/backup/), [Azure Backup](https://azure.microsoft.com/products/backup), [Google Cloud Backup and DR](https://cloud.google.com/backup-disaster-recovery) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Minutes/minutes: replication — [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/), [S3 Replication](https://aws.amazon.com/s3/features/replication/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* ~0 / seconds: synchronous multi-site; a data-model tax <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### RPO, RTO, and Backup Strategies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Backups are not a strategy until restore is a drill <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Rows, blobs, and the config that rebuilds the path <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Different failure domain than the primary <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Versioning: [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Write RPO and RTO as times; then restore once on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Multi-Region and Multi-Datacenter Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Multi-Region and Multi-Datacenter Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Zone: failure domain inside a region (metro latency) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Region: a geography plus a WAN RTT <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Maps: [AWS Regions and Availability Zones](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Google Cloud locations](https://cloud.google.com/about/locations), [Azure geographies](https://azure.microsoft.com/explore/global-infrastructure/geographies/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Multi-AZ is the default HA move; multi-region is DR <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Multi-Region and Multi-Datacenter Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Multi-AZ: replicas in two zones, regional [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) / [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) / [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/); [Amazon S3](https://aws.amazon.com/s3/) already replicates inside a region <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Multi-region data: [S3 Replication](https://aws.amazon.com/s3/features/replication/), cross-region [Amazon RDS](https://aws.amazon.com/rds/) replica <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Traffic: [Amazon Route 53](https://aws.amazon.com/route53/), [Azure Traffic Manager](https://azure.microsoft.com/products/traffic-manager), [Azure Front Door](https://azure.microsoft.com/products/frontdoor), [AWS Global Accelerator](https://aws.amazon.com/global-accelerator/), [Cloudflare](https://www.cloudflare.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Multi-Region and Multi-Datacenter Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Stateless compute in two regions is useless if the only [PostgreSQL](https://www.postgresql.org/) primary died with the first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Config, secrets, and identity are SPOFs you discover during the incident <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Active-passive multi-region is the default DR shape <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Active-active because the WAN arrow is unacceptable, plus a conflict story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Capacity Planning and Back-of-the-Envelope Math <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Capacity Planning and Back-of-the-Envelope Math <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Qualities without numbers are wishes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Orders of magnitude, not 14 decimals <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Canvas: [Excalidraw](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cost later: [AWS Pricing Calculator](https://calculator.aws/), [Google Cloud Pricing Calculator](https://cloud.google.com/products/calculator), [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Capacity Planning and Back-of-the-Envelope Math <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* QPS ≈ (DAU × requests/user/day × peak factor) / 86,400 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Storage ≈ objects × size × copies × retention <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Bandwidth ≈ QPS × payload on each hop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Boxes ≈ peak QPS / QPS per instance, then headroom <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Capacity Planning and Back-of-the-Envelope Math <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Powers of ten; peak not average <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* The datastore is usually the ceiling — [PostgreSQL](https://www.postgresql.org/) writes/s before app pods <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* App replicas are cheap: [AWS Auto Scaling](https://aws.amazon.com/autoscaling/), [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Blobs in [Amazon S3](https://aws.amazon.com/s3/); metadata in [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cross-region p99 50 ms cannot work: WAN is already ~100 ms <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cache near the user: [Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Large-scale: one box / disk / failure domain is not the whole story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Scale up first ([Amazon EC2](https://aws.amazon.com/ec2/), [Amazon RDS](https://aws.amazon.com/rds/)); then out ([AWS Auto Scaling](https://aws.amazon.com/autoscaling/), [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fast ≠ scalable <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Nines: [Google SRE availability table](https://sre.google/sre-book/availability-table/); sequence multiplies; replicas recover <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HA ≠ fault tolerance <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* SPOFs, failover ([Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/), [Amazon Route 53](https://aws.amazon.com/route53/)), active-passive vs active-active <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* SLI / SLO / SLA — [Service Level Objectives](https://sre.google/sre-book/service-level-objectives/), [Prometheus](https://prometheus.io/), [Datadog](https://www.datadoghq.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Latency ≠ throughput ≠ bandwidth; SLO the tail; memorize gaps on [Colin Scott's latency visualization](https://colin-scott.github.io/personal_website/research/interactive_latency.html) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* RPO, RTO, [AWS Backup](https://aws.amazon.com/backup/); multi-region is a WAN-and-data decision <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Napkin: QPS, storage, bandwidth, boxes on [Excalidraw](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next: Networking, Protocols, and Web Concepts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
         </textarea>
       </section>
     </div>
