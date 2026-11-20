@@ -741,3 +741,467 @@ Your loop for the rest of today: finish this chapter, then in Large-Scale System
 ### Summary: Introduction to System Design
 
 System design is choosing components, contracts, and operational qualities so a path still works as load, data, and failure grow — not software design inside one service, not an architecture map, and not a cloud-logo collage. The problems it solves are load, data, failure, latency versus correctness, and change. The building blocks you will keep naming are products such as [Amazon Web Services (AWS)](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), [Microsoft Azure](https://azure.microsoft.com/), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Apache Kafka](https://kafka.apache.org/), and [Cloudflare](https://www.cloudflare.com/). Practice on [Excalidraw](https://excalidraw.com/), keep [diagrams.net](https://www.diagrams.net/) for notes, and treat [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), and [CoderPad](https://coderpad.io/) as tools you may be handed. This book is foundations first, then an optional interview add-on, then applied designs. Next is **Large-Scale Systems: Scalability, Availability, Reliability, and Performance**.
+
+## Large-Scale Systems: Scalability, Availability, Reliability, and Performance
+
+Introduction to System Design named the qualities every later path is judged by. This chapter is those qualities, with numbers attached: what "large-scale" actually means, how you grow a path, how you keep it answering, how you keep it correct, how you make it fast enough, what you do when a region dies, and how back-of-the-envelope math keeps the sketch honest. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the path in [Excalidraw](https://excalidraw.com/) and naming products only when the choice matters. The next chapter is Networking, Protocols, and Web Concepts — the request path on the wire.
+
+You cannot maximize every quality at once. Write the ones that matter for *this* path, then pick.
+
+### What Large-Scale Means
+
+**Large-scale** is not a slogan and not a user-count trophy. A path is large-scale when **one box, one disk, or one failure domain is no longer a complete story**. The questions change: how does load grow, where does data live, what dies together, and how far away is the user.
+
+**The four axes you actually mean:**
+
+1. **Load.** Requests per second, concurrent sessions, peak versus average. One instance of an application, one [Amazon EC2](https://aws.amazon.com/ec2/) size, or one [Google Compute Engine](https://cloud.google.com/compute) machine type stops being enough.
+2. **Data.** Rows, blobs, logs, and indexes. A single disk fills. A single [PostgreSQL](https://www.postgresql.org/) primary cannot take every write. Blobs belong in object storage ([Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)), not in a row.
+3. **Failure domain.** What dies together: a process, a host, a rack, an availability zone, a region. [AWS Regions and Availability Zones](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Google Cloud locations](https://cloud.google.com/about/locations), and [Azure geographies](https://azure.microsoft.com/explore/global-infrastructure/geographies/) are the maps vendors publish. Two processes on one host are not two failure domains.
+4. **Geography.** Users in more than one place. Light is fast and still slow across an ocean. A [Cloudflare](https://www.cloudflare.com/) edge or a [Amazon CloudFront](https://aws.amazon.com/cloudfront/) cache is a geography story, not a "we used a CDN" sticker.
+
+**What large-scale is not:**
+
+- Not "we will have a million users." Say the QPS, the data size, and the region story, or you have not scoped the path.
+- Not a reason to draw [Kubernetes](https://kubernetes.io/) on slide one. Orchestration is a later chapter. Scale is a quality of the path.
+- Not a reason to skip the single-box design. Vertical scaling is often the right first lever. We teach it before horizontal scaling on purpose.
+
+**Working rule:** large-scale starts when you can name what a bigger box cannot fix. Until then, say the numbers and stay honest.
+
+### Scalability
+
+**Scalability** is whether the path still meets its other qualities as load and data grow. You add resources. You do not rewrite the product every time traffic doubles.
+
+Two levers exist. They are not synonyms, and they are not equally cheap.
+
+- **Vertical scaling** — a bigger box: more CPU, RAM, disk, IOPS.
+- **Horizontal scaling** — more boxes: replicas behind a load balancer, shards, partitions.
+
+Vendors sell both. [Amazon EC2](https://aws.amazon.com/ec2/) instance families, [Google Compute Engine](https://cloud.google.com/compute) machine types, and [Azure Virtual Machines](https://azure.microsoft.com/products/virtual-machines) are the vertical catalog. [AWS Auto Scaling](https://aws.amazon.com/autoscaling/), [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), and a load balancer ([AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer), [NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), [Envoy](https://www.envoyproxy.io/)) are the horizontal catalog.
+
+**Working rule:** say which lever you are pulling, why the other one is worse *here*, and what state the new box shares.
+
+#### Vertical Scaling
+
+**Vertical scaling** (scale up) means you give the same component more hardware. One [PostgreSQL](https://www.postgresql.org/) primary on a larger [Amazon RDS](https://aws.amazon.com/rds/) instance. One API process with more RAM. One disk with more IOPS.
+
+**[Amazon EC2](https://aws.amazon.com/ec2/)**, **[Google Compute Engine](https://cloud.google.com/compute)**, and **[Azure Virtual Machines](https://azure.microsoft.com/products/virtual-machines)**
+
+- **Primary function:** rent a machine whose size you can change. CPU, memory, network, and (on some families) local disk come in a menu.
+- **When we send you here:** the path is one stateful box, the bottleneck is that box, and a larger size is cheaper than splitting state.
+- **What they are not:** not infinite. Every family has a largest size. Licensing, RAM, and IOPS ceilings are real. A bigger primary is still one failure domain.
+
+**Why vertical is the default first move:**
+
+1. **The application does not change.** No load balancer, no shared session store, no shard key.
+2. **Operations stay simple.** One primary to backup, one box to watch in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), [Google Cloud Monitoring](https://cloud.google.com/monitoring), or [Azure Monitor](https://azure.microsoft.com/products/monitor).
+3. **It is often cheaper at small scale.** Two small instances plus a load balancer plus a shared [Redis](https://redis.io/) can cost more than one medium instance, and fail in more ways.
+
+**The ceilings you will hit:**
+
+- A largest instance type. After that, money does not buy another core on that box.
+- A single-writer datastore. [PostgreSQL](https://www.postgresql.org/) on one primary still serializes writes that touch the same rows, no matter how large the VM.
+- Blast radius. The bigger the box, the more of the product dies with it.
+- Deploy and reboot time. Vertical changes often mean a restart. Horizontal adds a replica beside a live one.
+
+**Working rule:** scale up until the next size is more expensive, slower to change, or still a single point of failure you cannot accept. Then scale out.
+
+#### Horizontal Scaling
+
+**Horizontal scaling** (scale out) means you add instances of the same role and split work across them. Stateless API replicas behind a load balancer. Read replicas. Shards. Partitions of a log.
+
+This only works if the new box can do useful work without owning all the state.
+
+**What has to be true:**
+
+1. **A front door that spreads traffic.** [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer), or software such as [NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), and [Envoy](https://www.envoyproxy.io/). Networking, Protocols, and Web Concepts is the load-balancing chapter. For this quality, you only need: health checks, and a story for what happens when an instance disappears.
+2. **State that is shared or partitioned on purpose.** Sessions in [Redis](https://redis.io/) (or [Amazon ElastiCache](https://aws.amazon.com/elasticache/)), rows in a shared [PostgreSQL](https://www.postgresql.org/) (or [Amazon RDS](https://aws.amazon.com/rds/)), blobs in [Amazon S3](https://aws.amazon.com/s3/). Sticky sessions on the load balancer are a patch, not a design.
+3. **A way to add and remove boxes without a meeting.** [AWS Auto Scaling](https://aws.amazon.com/autoscaling/) for VMs and target groups. [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) when you are already on [Kubernetes](https://kubernetes.io/). Autoscaling that cannot see a meaningful metric is a fan.
+
+**[AWS Auto Scaling](https://aws.amazon.com/autoscaling/)**
+
+- **Primary function:** add or remove instances from a group from a metric (CPU, request count, a custom metric in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/)).
+- **When we send you here:** VM-shaped compute on [AWS](https://aws.amazon.com/), a load balancer in front, and a metric that actually tracks work.
+- **What it is not:** not a substitute for a shard key. It will not split a single-writer primary for you.
+
+**[Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)**
+
+- **Primary function:** change the replica count of a workload from CPU, memory, or custom metrics.
+- **When we send you here:** the path is already containers on [Kubernetes](https://kubernetes.io/). Docs: [Kubernetes documentation](https://kubernetes.io/docs/).
+- **What it is not:** not a reason to introduce [Kubernetes](https://kubernetes.io/) so you can scale. A managed load balancer plus [AWS Auto Scaling](https://aws.amazon.com/autoscaling/) is a complete horizontal story.
+
+**What horizontal does not fix:**
+
+- A hot key. Ten replicas still serialize on one popular row or one [Redis](https://redis.io/) slot.
+- A chatty database. More app boxes can make the datastore worse.
+- A stateful process that stores uploads on local disk. The next replica does not have the file.
+
+**Working rule:** scale out the *stateless* hop first. Partition the *stateful* hop only when one box cannot hold the writes or the data. Databases and Storage is that later split.
+
+#### Performance vs Scalability
+
+**Performance** is how a path behaves at a given load: latency, throughput, resource cost per request. **Scalability** is whether those numbers stay acceptable when load and data grow. A fast system can be unscalable. A scalable system can be slow.
+
+**The mix-up you will hear:**
+
+- "It is slow, so we need to scale." Maybe. First ask whether the current box is idle. An N+1 query, a missing index, a lock, or a remote call in a loop is a performance bug. Adding replicas copies the bug.
+- "It is fast, so it will scale." A single in-memory [Redis](https://redis.io/) on one host can be extremely fast and still be one disk, one NIC, and one failure domain.
+- "We put it on [Kubernetes](https://kubernetes.io/), so it scales." Orchestration does not invent a shard key or a cache TTL.
+
+**How you tell them apart on a sketch:**
+
+1. Hold load constant. Can you make one request faster? That is performance: indexes, a [Redis](https://redis.io/) TTL, a [Cloudflare](https://www.cloudflare.com/) cache, a smaller payload, fewer hops.
+2. Hold the code constant. Can you add resources and take more work? That is scalability: a bigger [Amazon RDS](https://aws.amazon.com/rds/) size, more API replicas behind [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), a second shard.
+
+You usually need both. Tune the request you have. Then pick the lever that grows capacity. Performance later in this chapter is the vocabulary (latency, throughput, tails, numbers). Scalability is the growth story.
+
+**Working rule:** fast ≠ scalable. Say which one you are fixing before you add a box.
+
+### Availability
+
+**Availability** is whether the path answers when a client asks. The usual forms:
+
+- **Time-based:** uptime / (uptime + downtime). Simple for a single box.
+- **Yield-based:** successful requests / valid requests. The form [Site Reliability Engineering](https://sre.google/sre-book/table-of-contents/) prefers for multi-replica services that are never fully "down" everywhere. Canonical write-up: [Embracing Risk](https://sre.google/sre-book/embracing-risk/).
+
+A 200 that took 30 seconds may still count as available if your SLI is "HTTP not 5xx." It is not a performance win. Write the definition before you quote a percentage.
+
+Vendors publish **service level agreements** for their building blocks ([AWS Service Level Agreements](https://aws.amazon.com/legal/service-level-agreements/), [Google Cloud SLAs](https://cloud.google.com/terms/sla), [Azure SLAs](https://www.microsoft.com/licensing/docs/view/Service-Level-Agreements-SLA-for-Online-Services)). Those are *their* promises about *their* products, not your product's availability. Your number is composed from every hop you added.
+
+#### The Nines of Availability
+
+People say "three nines" instead of 99.9%. Each extra nine is roughly **ten times less** allowed unavailability, not a rounding error. The [Google SRE availability table](https://sre.google/sre-book/availability-table/) is the sheet everyone else is quoting.
+
+| Availability | Name | Allowed unavailability per year |
+| --- | --- | --- |
+| 90% | one nine | 36.5 days |
+| 99% | two nines | 3.65 days |
+| 99.9% | three nines | 8.76 hours |
+| 99.95% | three and a half nines | 4.38 hours |
+| 99.99% | four nines | 52.6 minutes |
+| 99.999% | five nines | 5.26 minutes |
+
+*Allowed unavailability in a year from the [Google SRE availability table](https://sre.google/sre-book/availability-table/), assuming no planned downtime.*
+
+**How to use the table:**
+
+- **99% (two nines)** is a weekend of downtime a year. Fine for an internal tool. Not fine for a checkout path.
+- **99.9% (three nines)** is a working day of downtime a year. A common first SLO for a user-facing path that is not money movement.
+- **99.99% (four nines)** is under an hour a year. Deploys, failovers, and paging have to be measured in minutes. [Embracing Risk](https://sre.google/sre-book/embracing-risk/) is explicit: 100% is not a target.
+- **99.999% (five nines)** is a coffee break a year. You do not get there by adding one more replica in the same zone.
+
+**Error budget.** If the SLO is 99.9%, the budget is the 0.1% you are allowed to spend on deploys, incidents, and experiments. [Service Level Objectives](https://sre.google/sre-book/service-level-objectives/) in the [Google SRE book](https://sre.google/sre-book/table-of-contents/) is the definition. Spend it on purpose. Hide it and you will spend it on accidents.
+
+**Working rule:** pick nines from the user and the cost, not from a slide that says "highly available." Each extra nine is an architecture change, not a nicer dashboard.
+
+#### Availability in Sequence vs Parallel
+
+Hops **in sequence** multiply. Replicas **in parallel** recover what multiplication lost.
+
+**Sequence (the request walks A, then B, then C):**
+
+If each hop is independently available with probability `A`, `B`, `C`, the path is available with `A × B × C`. Three hops at 99.9% are about **99.7%** together, not 99.9%. Every extra synchronous dependency is a haircut. Timeouts, retries, and caches exist because of this arithmetic, not because they look like "production."
+
+**Parallel (the request can use replica 1 *or* replica 2):**
+
+If each replica fails independently with probability `F`, two replicas fail together with `F × F`. Two hops at 99% in parallel are about **99.99%**, if failover actually works and they do not share a failure domain. Two processes on one host share a host. Two instances in one availability zone share a zone.
+
+**What "independent" actually requires:**
+
+- Separate hosts, preferably separate [AWS Availability Zones](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/) (or the [Google Cloud](https://cloud.google.com/about/locations) / [Azure](https://azure.microsoft.com/explore/global-infrastructure/geographies/) equivalent).
+- Separate connection pools, disks, and deploy waves. A lockstep deploy of both replicas is one failure.
+- A load balancer that **health-checks** and stops sending to the dead one. [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) target health, [Kubernetes](https://kubernetes.io/) [liveness and readiness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/), and [Amazon Route 53](https://aws.amazon.com/route53/) health checks are that switch. A replica that is up in the config and dead in reality is still sequence math.
+
+**Working rule:** count synchronous hops (they cost nines). Count independent replicas (they buy nines). Shared fate is still sequence, even if you drew two boxes.
+
+#### High Availability vs Fault Tolerance
+
+These phrases get used as synonyms. They are not.
+
+**High availability (HA)** is a *target and a posture*: the path keeps answering through the failures you planned for, usually by hiding them behind redundancy and failover. An [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) deployment, two API replicas in two zones, a load balancer with health checks — that is HA work. The user may not notice the failover. The system did fail; you masked it.
+
+**Fault tolerance (FT)** is a *property of the design*: the path continues to provide *correct* service while a component is actually broken, not only after you have replaced it. Replicated writes with a quorum, a retry that cannot double-charge, a replica that was already serving. Fault Tolerance is the next heading; we separate the words here so you do not write "HA/FT" and sit down.
+
+**Practical differences on a sketch:**
+
+- HA often accepts a brief interruption (DNS failover, a 30-second [Amazon RDS](https://aws.amazon.com/rds/) failover, a crashed pod while [Kubernetes](https://kubernetes.io/) starts another). The SLO still holds if the budget allows it.
+- FT means a client that retried, or a replica that was already in the set, still got a correct answer *during* the fault. That is harder. It is also how you spend money: extra replicas, extra regions, extra coordination.
+- An HA pair that shares a disk is not fault tolerant to that disk. An FT replica set that returns stale data may still be "up." Availability versus reliability is coming.
+
+Vendor checklists ([AWS Well-Architected Reliability Pillar](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html), [Google Cloud Architecture Framework](https://cloud.google.com/architecture/framework), [Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/)) mix these words. You will not. On the sketch, write **what dies**, **what still serves**, and **whether the answer is still correct**.
+
+**Working rule:** HA is "users still get an answer." Fault tolerance is "the answer is still right while something is broken." Buy them separately.
+
+### Fault Tolerance
+
+**Fault tolerance** is the story you tell when a component dies, hangs, or lies. Disks fail. Processes OOM. Zones flood. Dependencies time out. A design with no death story is a hope.
+
+The loop is always the same:
+
+1. Name the component and its failure domain.
+2. Say what the client sees (error, retry, stale data, a queue).
+3. Say what brings the path back (a replica, a failover, a human).
+
+You will measure whether that story is true with [Prometheus](https://prometheus.io/) and [Grafana](https://grafana.com/), [Datadog](https://www.datadoghq.com/), [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), or [OpenTelemetry](https://opentelemetry.io/) traces. Monitoring and Observability is the chapter. A failover you cannot see in telemetry did not happen; you got lucky.
+
+#### Single Points of Failure
+
+A **single point of failure (SPOF)** is a component whose death takes the path with it. One [PostgreSQL](https://www.postgresql.org/) primary with no replica. One [Redis](https://redis.io/) without a replica or a cache-miss fallback. One availability zone. One [Amazon S3](https://aws.amazon.com/s3/) bucket in one region if that region *is* the product. One operator's laptop with the only credentials.
+
+**How you hunt them on a sketch:**
+
+- Put a finger on every box and every arrow. Kill it. If the user-facing request has nowhere to go, you found one.
+- Shared fate counts. Two app boxes in one zone are one zone SPOF. A primary and a replica on one host are one host SPOF.
+- Control planes count. A single load balancer instance, a single [Amazon Route 53](https://aws.amazon.com/route53/) record with no failover policy, a single CI that cannot roll back.
+- People count. A runbook that lives in one head is a SPOF. This book will not pretend otherwise.
+
+**What you do with one:**
+
+1. **Remove it** — a replica, a second zone, a queue so a worker death does not drop the write.
+2. **Shrink the blast radius** — timeouts, bulkheads (later, Architectural Patterns), so one dependency cannot stall every request.
+3. **Name it on purpose.** A single-writer primary is often an accepted SPOF for writes, with a replica for reads and a failover plan. Pretending it is not there is worse than writing "writes die with the primary for 60 seconds."
+
+Managed products hide some SPOFs and create others. [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) removes the single-AZ disk as a write SPOF and leaves you a failover window. [Amazon S3](https://aws.amazon.com/s3/) is multi-AZ inside a region; it is not multi-region unless you turn on [S3 Replication](https://aws.amazon.com/s3/features/replication/). Read the failure domain the vendor actually sells.
+
+**Working rule:** every box gets a kill test. The ones you keep as SPOFs get a sentence: what dies, how long, what the client sees.
+
+#### Failover and Redundancy
+
+**Redundancy** is extra capacity that can do the same job. **Failover** is the act of using it when the primary cannot.
+
+Redundancy without failover is a spare in a warehouse. Failover without health checks is a coin flip.
+
+**The pieces that have to exist:**
+
+1. **A replica that is actually ready.** [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) keeps a standby in another zone and fails over on host or AZ loss. [Redis](https://redis.io/) replication plus [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/) or [Amazon ElastiCache](https://aws.amazon.com/elasticache/) Multi-AZ is the cache analog. A replica that is 4 hours behind is not a failover target for a 30-second RTO.
+2. **A detector.** Load balancer health checks, [Kubernetes](https://kubernetes.io/) [readiness probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/), [Amazon Route 53](https://aws.amazon.com/route53/) health checks, a metric alert in [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) or [Datadog](https://www.datadoghq.com/). If you cannot tell it is dead, you cannot fail over.
+3. **A mover.** DNS failover ([Amazon Route 53](https://aws.amazon.com/route53/), [Google Cloud DNS](https://cloud.google.com/dns), [Azure Traffic Manager](https://azure.microsoft.com/products/traffic-manager), [Cloudflare](https://www.cloudflare.com/)), a load balancer that pulls a target, a [Kubernetes](https://kubernetes.io/) pod replacement, an [Amazon RDS](https://aws.amazon.com/rds/) Multi-AZ promotion. DNS TTLs are part of the failover time. Lie about that and your RTO is fiction.
+4. **A client that survives the move.** Retries with backoff, idempotent writes (API Design later), a timeout shorter than the user's patience. Infinite retries against a dead dependency are how you turn one fault into a cascade.
+
+**[Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/)**
+
+- **Primary function:** a synchronous standby in another availability zone and automatic failover for the primary endpoint.
+- **When we send you here:** [PostgreSQL](https://www.postgresql.org/) or another engine on [Amazon RDS](https://aws.amazon.com/rds/), and you will not run your own replica promotion on the first path.
+- **What it is not:** not multi-region. Not a zero-downtime promise. Failover is typically tens of seconds, and in-flight transactions break.
+
+Practice failover. Restore a backup. Kill a replica in a test account. [AWS Fault Injection Service](https://aws.amazon.com/fis/) exists so you do not wait for a real zone to do the teaching. A runbook you never ran is a story.
+
+**Working rule:** redundancy is a box. Failover is a tested path: detect, move, survive.
+
+#### Active-Active vs Active-Passive
+
+Two ways to spend the extra box.
+
+**Active-passive (active-standby):** one side takes traffic. The other is ready (or almost ready) and takes over on failover. [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) is this shape. A hot standby that already has the data is faster than a cold spare you boot from a snapshot. You pay for the standby the whole time. You get a simpler consistency story: one writer.
+
+**Active-active:** both (or all) sides take traffic at once. API replicas behind [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) are the easy version — stateless workers, shared datastore. Multi-region active-active is the hard version: writes in more than one place, conflict, replication lag. [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) [global tables](https://aws.amazon.com/dynamodb/global-tables/) and multi-primary [PostgreSQL](https://www.postgresql.org/) topologies exist. They are not the default. Distributed Systems is where conflict and quorum live.
+
+**How you pick:**
+
+| Shape | You buy | You pay |
+| --- | --- | --- |
+| Cold passive | Cheap spare | Long RTO; restore from backup |
+| Hot passive | Fast failover, one writer | Idle capacity; failover still a blip |
+| Active-active (same region) | Capacity and nines on the stateless hop | Shared state must already scale |
+| Active-active (multi-region) | Regional survival, lower read latency | Conflict, lag, and a much harder data model |
+
+**Working rule:** stateless hops want active-active. Stateful hops start active-passive with a tested failover. Multi-region active-active is a data-model decision, not a load-balancer checkbox.
+
+### Reliability
+
+**Reliability** is whether the path is *correct over time*, not only reachable. A checkout that is up and charges twice is available and not reliable. A store that is up and returns yesterday's inventory may still meet an availability SLI.
+
+[Site Reliability Engineering](https://sre.google/sre-book/table-of-contents/) treats reliability as the quality you engineer with error budgets, SLIs, and the operational loop. You will not get it from a logo. You get it from a definition you can measure in [Prometheus](https://prometheus.io/), [Datadog](https://www.datadoghq.com/), or [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/).
+
+#### Availability vs Reliability
+
+Keep the words apart on the sketch.
+
+- **Availability:** did the path answer? (time up, or fraction of valid requests that got a non-error)
+- **Reliability:** was the answer right, complete, and on the contract you promised? (correct writes, durable reads, no silent drops)
+
+**Examples you will actually meet:**
+
+- A load balancer that returns 200 from a stale cache while the primary is down: available, possibly acceptable, not the same as "the write succeeded."
+- A queue that accepts a message and then drops it: the client got 202, the work never happened.
+- A replica that is easy to reach and 15 minutes behind: available reads, wrong reads if the client needed the write they just did.
+- Five nines of uptime with weekly data corruption is not a reliable store.
+
+Durability (the bit did not disappear) sits next to reliability for stores. [Amazon S3](https://aws.amazon.com/s3/) quotes eleven nines of durability inside a region — that is "the object is still there," not "GET always works." Availability and durability are different contracts. Do not paste the durability number onto an availability SLO.
+
+**Working rule:** up ≠ correct. Write both. Measure both.
+
+#### SLA, SLO, and SLI
+
+Three documents, three audiences. Mixing them is how you promise nines you cannot measure.
+
+**SLI — Service Level Indicator.** The *thing you measure*. Ratio of successful probes, p99 latency, freshness of a replica, fraction of captured payments that later reconcile. [Service Level Objectives](https://sre.google/sre-book/service-level-objectives/) is the canonical chapter. You implement the measurement in [Prometheus](https://prometheus.io/) (plus [Grafana](https://grafana.com/) for the picture), [Datadog](https://www.datadoghq.com/), [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), [Google Cloud Monitoring](https://cloud.google.com/monitoring), [Azure Monitor](https://azure.microsoft.com/products/monitor), or traces via [OpenTelemetry](https://opentelemetry.io/). If you cannot query it, it is not an SLI.
+
+**SLO — Service Level Objective.** The *target you aim at* for an SLI, internally. "99.9% of well-formed GETs in 300 ms over 30 days." The error budget is `1 − SLO`. [Implementing SLOs](https://sre.google/workbook/implementing-slos/) in the [SRE Workbook](https://sre.google/workbook/table-of-contents/) is the practical follow-on. Product and engineering share this number. It is how you decide whether to ship or freeze.
+
+**SLA — Service Level Agreement.** The *contract with a customer* (or a vendor's contract with you). Miss it and money or legal consequences move. It is usually looser than the SLO so you have budget left. Vendor examples: [AWS Service Level Agreements](https://aws.amazon.com/legal/service-level-agreements/), [Google Cloud SLAs](https://cloud.google.com/terms/sla), [Azure SLAs](https://www.microsoft.com/licensing/docs/view/Service-Level-Agreements-SLA-for-Online-Services). Those compensate *their* downtime, not your composed path.
+
+**A working set for a user-facing read path:**
+
+1. Pick one availability SLI (yield) and one latency SLI (a percentile, not the mean).
+2. Set SLOs a product person would actually defend.
+3. Leave the SLA looser, or omit it if you have no customer contract yet.
+4. Alert on budget burn, not on every blip. [PagerDuty](https://www.pagerduty.com/) (or the equivalent your team already pages with) is for budget-threatening faults, not for a single 5xx.
+
+**Working rule:** SLI = measure. SLO = internal target plus error budget. SLA = external contract. Never let a vendor SLA stand in for your SLO.
+
+### Performance
+
+**Performance** is the quality users feel as delay and the quality operators feel as capacity. It is not a synonym for scalability. A path can be fast for one thousand QPS and fall over at two thousand. A path can be slow at one hundred QPS and still add boxes.
+
+You will talk about three different quantities (latency, throughput, bandwidth), then about the tail, then about the physical numbers that keep estimates from being fiction.
+
+#### Latency vs Throughput vs Bandwidth
+
+Three words. Three different axes. Mixing them is how you "fix latency" by buying a fatter NIC.
+
+**Latency** is time for one unit of work: a request, a disk read, a packet round trip. Users feel this. Units: ms, µs, ns. Lower is better.
+
+**Throughput** is units of work per unit time: requests per second, records per second, transactions per second. Operators feel this as capacity. Units: QPS, RPS, TPS. Higher is better.
+
+**Bandwidth** is raw volume per unit time on a link or a disk: Gbps, MB/s. It is a ceiling on throughput × payload size. A 1 Gbps NIC moves about 125 MB/s. That is not 125,000 requests/s unless each request is 1 KB and nothing else is on the wire.
+
+**How they fight:**
+
+- Batching **raises throughput** and usually **raises latency** for the first item in the batch. [Apache Kafka](https://kafka.apache.org/) producers batch for this reason.
+- More concurrent in-flight requests can **raise throughput** until queues explode, then **latency** goes non-linear. That knee is the capacity number you wanted.
+- A [Cloudflare](https://www.cloudflare.com/) or [Amazon CloudFront](https://aws.amazon.com/cloudfront/) cache cuts **latency** for hits and cuts **bandwidth** into the origin. It does not increase origin **throughput** except by subtracting work.
+
+**Working rule:** say which axis you are moving. "Make it faster" is not a requirement. "p99 GET under 200 ms at 5k QPS" is.
+
+#### Tail Latency and Percentiles
+
+The **mean** is a liar. One slow request in a hundred is a rounding error on the average and the entire user experience for that user. Report **percentiles**.
+
+- **p50 (median):** half of requests were faster. A healthy "typical" number.
+- **p95 / p99 / p99.9:** the tail. This is what you SLO, because this is what humans and fan-out see.
+
+**Why tails exist even when the median is fine:**
+
+- Garbage collection, compaction, a noisy neighbor, a cold cache, a lock, a slow disk.
+- **Fan-out:** one user request waits for *N* backend calls and takes the slowest. If each backend has a 1% chance of a slow call, a 50-way fan-out is slow often. Tail at scale is a coordination problem, not a mean problem.
+- Retries: a timeout plus a retry can turn a slow tail into a stampede. Timeout < user patience, retry with jitter, cap the attempts.
+
+Measure tails in [Prometheus](https://prometheus.io/) histograms, [Datadog](https://www.datadoghq.com/) distribution metrics, [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) percentile statistics, or [OpenTelemetry](https://opentelemetry.io/) traces. Averages in [Grafana](https://grafana.com/) are for finding out you need percentiles.
+
+**Working rule:** SLO the tail (p99 or p99.9), not the mean. If the request fans out, the tail is the product.
+
+#### Numbers Worth Memorizing
+
+Back-of-the-envelope math is only as honest as the physical numbers you plug in. The set everyone else is using is Jeff Dean / Peter Norvig's "numbers every programmer should know," kept current as an interactive chart at [Colin Scott's latency visualization](https://colin-scott.github.io/personal_website/research/interactive_latency.html) and listed in [Peter Norvig's Teach Yourself Programming in Ten Years notes](https://norvig.com/21-days.html#answers). Orders of magnitude matter more than the last digit. They move as hardware moves; the *gaps* between memory, SSD, disk, and WAN do not disappear.
+
+| Operation | Order of magnitude |
+| --- | --- |
+| L1 cache reference | 1 ns |
+| Main memory reference | 100 ns |
+| Round trip inside a datacenter | 0.5 ms |
+| SSD random read | 0.1 ms |
+| Disk seek | 10 ms |
+| Read 1 MB sequentially from memory | 0.25 ms |
+| Read 1 MB sequentially from SSD | 1 ms |
+| Read 1 MB sequentially from disk | 20 ms |
+| Round trip CA ↔ Europe | 100–150 ms |
+
+*Orders of magnitude, not a benchmark of your cluster. Refresh the picture on [Colin Scott's latency visualization](https://colin-scott.github.io/personal_website/research/interactive_latency.html).*
+
+**What this does to a design:**
+
+- **Memory vs disk.** A [Redis](https://redis.io/) GET is a memory reference plus a network hop. A disk-backed [PostgreSQL](https://www.postgresql.org/) primary that misses cache pays seeks. Caching is not a fashion; it is a 100×–1000× gap.
+- **In-datacenter vs WAN.** A same-zone call is sub-millisecond to a few milliseconds. A cross-region call is 50–150 ms before you wrote any code. Multi-region consistency pays this on every write.
+- **Sequential vs random.** Streaming 1 MB is cheap relative to seeking all over a disk. Logs and scans like sequential. Point lookups like memory or SSD.
+- **Packet vs payload.** Sending 1 KB on a 1 Gbps link is tens of microseconds of *wire* time and still loses to a WAN RTT. Chatty APIs die from round trips, not from megabytes.
+
+You do not memorize every row for a quiz. You memorize the **gaps** so that "we will just call the other region on the read path" is a number, not a vibe.
+
+**Working rule:** if the sketch crosses memory → SSD → disk → zone → region, write the order of magnitude on the arrow.
+
+### Disaster Recovery
+
+**Disaster recovery (DR)** is the plan for a failure domain you do not fail over inside of: a region, a provider outage, a corrupted dataset, a bad deploy that ate the data. High availability in one zone is not DR. A second process on the same host is not DR.
+
+The [AWS Well-Architected Reliability Pillar](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/welcome.html), [Google Cloud Architecture Framework](https://cloud.google.com/architecture/framework), and [Azure Well-Architected Framework](https://learn.microsoft.com/azure/well-architected/) all separate *resiliency in a region* from *recovery across regions*. You should too.
+
+#### RPO, RTO, and Backup Strategies
+
+Two numbers, then a backup you have actually restored.
+
+**RPO — Recovery Point Objective.** How much *data* you can lose, measured in time. RPO of 0 means every acknowledged write survives the disaster (synchronous replication to the DR site). RPO of 24 hours means yesterday's backup is an acceptable truth.
+
+**RTO — Recovery Time Objective.** How long the path can stay wrong or down while you recover. RTO of 5 minutes is automatic failover. RTO of 24 hours is "we restore from backup on Monday."
+
+These are product numbers. Engineering maps them onto a strategy:
+
+| Rough RPO / RTO | Typical strategy | Tools you can point at |
+| --- | --- | --- |
+| Hours / hours | Periodic backups, restore into a new box | [AWS Backup](https://aws.amazon.com/backup/), [Azure Backup](https://azure.microsoft.com/products/backup), [Google Cloud Backup and DR](https://cloud.google.com/backup-disaster-recovery), [Amazon RDS](https://aws.amazon.com/rds/) snapshots |
+| Minutes / minutes | Continuous replication, hot or warm standby | [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) (in-region), cross-region read replicas, [S3 Replication](https://aws.amazon.com/s3/features/replication/) |
+| ~0 / seconds | Synchronous multi-site, active-active | Multi-region datastores, conflict rules; this is a data-model tax |
+
+**Backups are not a strategy until restore is a drill.**
+
+- **What you back up:** databases ([Amazon RDS](https://aws.amazon.com/rds/) snapshots, [PostgreSQL](https://www.postgresql.org/) dumps), object stores (versioning on [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)), and the *config* that knows how to rebuild the path.
+- **Where it lives:** a different failure domain than the primary. Same-zone snapshots die with the zone.
+- **[AWS Backup](https://aws.amazon.com/backup/)** is a control plane for scheduling and restoring across [AWS](https://aws.amazon.com/) services. **[Azure Backup](https://azure.microsoft.com/products/backup)** and **[Google Cloud Backup and DR](https://cloud.google.com/backup-disaster-recovery)** are the sibling products. They do not pick your RPO for you.
+- Encrypt, restrict who can delete, and test a restore on a schedule. An untested backup is a story you tell yourself.
+
+**Working rule:** write RPO and RTO as times. Then pick the cheapest strategy that meets both. Then restore it once on purpose.
+
+#### Multi-Region and Multi-Datacenter Failover
+
+An **availability zone** is a failure domain inside a region (separate buildings, independent power, short metro latency). A **region** is a geography with its own control plane and a WAN RTT to other regions. [AWS Regions and Availability Zones](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Google Cloud locations](https://cloud.google.com/about/locations), [Azure geographies](https://azure.microsoft.com/explore/global-infrastructure/geographies/). Multi-AZ is the default HA move. Multi-region is the DR move, and it costs latency and consistency.
+
+**Multi-AZ (usually the right first redundancy):**
+
+- API replicas in at least two zones, a regional load balancer ([AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer)).
+- [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) or the equivalent for the primary.
+- [Amazon S3](https://aws.amazon.com/s3/) already replicates inside the region; do not confuse that with cross-region.
+
+**Multi-region (when a region dying is in the threat model):**
+
+1. **Data.** Asynchronous replica in the second region (nonzero RPO) or a multi-primary topology (conflicts). [S3 Replication](https://aws.amazon.com/s3/features/replication/) for blobs. A cross-region [Amazon RDS](https://aws.amazon.com/rds/) replica for rows. Active-active at this layer is a Distributed Systems chapter, not a checkbox.
+2. **Traffic.** DNS or anycast failover: [Amazon Route 53](https://aws.amazon.com/route53/) (failover / latency policies), [Azure Traffic Manager](https://azure.microsoft.com/products/traffic-manager), [Azure Front Door](https://azure.microsoft.com/products/frontdoor), [AWS Global Accelerator](https://aws.amazon.com/global-accelerator/), [Cloudflare](https://www.cloudflare.com/). Health checks plus a TTL you can live with. A 60-second TTL is part of the RTO.
+3. **Stateless compute.** You can run API replicas in two regions tomorrow. They are useless if the only [PostgreSQL](https://www.postgresql.org/) primary still lives in the dead region.
+4. **Config, secrets, and identity.** The control plane you forgot is the SPOF you will discover during the incident.
+
+**Active-passive multi-region** is the default DR shape: one region serves, the other is warm, DNS or a global front door swings. **Active-active multi-region** is a product that must read and write near the user in more than one geography. Do not "do active-active" to feel safe. Do it because the latency number on the WAN arrow is unacceptable and you have a conflict story.
+
+**Working rule:** multi-AZ first. Multi-region when the threat is the region. Writes that cross a region buy a WAN RTT or a conflict. Draw that cost.
+
+### Capacity Planning and Back-of-the-Envelope Math
+
+Qualities without numbers are wishes. **Capacity planning** is the napkin that tells you whether one box, ten boxes, or a different design is the path. **Back-of-the-envelope math** is how we do it in this book: orders of magnitude, not a spreadsheet of 14 decimals. The optional interview add-on reuses this skill under a clock. The skill is the same at work.
+
+You do not need a cloud account. You do need a canvas ([Excalidraw](https://excalidraw.com/)) and the numbers from Numbers Worth Memorizing. When you want a cost sanity check later, [AWS Pricing Calculator](https://calculator.aws/), [Google Cloud Pricing Calculator](https://cloud.google.com/products/calculator), and [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/) turn instance shapes into money. Money is a constraint. It is not the first line on the napkin.
+
+**The four lines we always write:**
+
+1. **QPS (throughput).** `peak QPS ≈ (daily active users × requests per user per day × peak factor) / 86,400`. 86,400 seconds in a day is ~10^5. Peak factor is often 2–5× average. If you cannot name requests per user, you cannot name QPS.
+2. **Storage.** `bytes ≈ objects × average size × copies × retention`. Copies include replicas, backups, and versions. A 1 KB row and a 1 MB blob are different designs. Blobs go to [Amazon S3](https://aws.amazon.com/s3/) (or [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)); metadata stays in [PostgreSQL](https://www.postgresql.org/).
+3. **Bandwidth.** `bytes/s ≈ QPS × payload size` on each hop (client ↔ edge, edge ↔ origin, service ↔ datastore). Compare to NIC and disk sequential numbers. A 1 Gbps link is ~125 MB/s. Video and image paths die here first; JSON APIs usually die on QPS or datastore IOPS instead.
+4. **Boxes.** `instances ≈ peak QPS / QPS per instance`, then add headroom (often 2×) so a zone or a deploy does not sit at 100%. QPS per instance comes from a rough budget: CPU, RAM, and the datastore in front of it — not from hope. Vertical versus horizontal is the lever you already picked.
+
+**Rules that keep the napkin honest:**
+
+- **Powers of ten.** 10^3 = thousand, 10^6 = million, 10^9 = billion. If two estimates disagree by 100×, one of them is wrong; find it before you draw [Kubernetes](https://kubernetes.io/).
+- **Peak, not average.** SLOs fail at peak. Size for peak. Average is for the bill.
+- **The datastore is usually the ceiling.** App replicas are cheap to add ([AWS Auto Scaling](https://aws.amazon.com/autoscaling/), [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)). A single [PostgreSQL](https://www.postgresql.org/) primary is not. Estimate writes/s on the primary before you estimate app pods.
+- **Memory vs disk vs WAN.** If the working set fits in [Redis](https://redis.io/), latency is a network hop. If it does not, you are on SSD or disk numbers. If the hop is another region, you are on 100 ms.
+- **Write the unit.** "A lot of traffic" is not a number. "5k QPS of 2 KB reads, p99 50 ms, one region" is a design input.
+
+**Worked order of magnitude (so you see the shape, not a case study):**
+
+- 10 million daily users, 10 reads per user per day, peak 3× average → about `10^7 × 10 × 3 / 10^5 ≈ 3,000` QPS at peak. An API that does 500 QPS per instance needs ~6 instances before headroom, ~12 after. That is a load balancer and [AWS Auto Scaling](https://aws.amazon.com/autoscaling/), not a rewrite.
+- 10 million objects, 200 KB each, 3 copies (primary, replica, backup), 1 year retained → about `10^7 × 2×10^5 × 3 ≈ 6×10^12` bytes, a few terabytes. That is object storage, not a row in [PostgreSQL](https://www.postgresql.org/).
+- Cross-region on every read at p99 50 ms **cannot work**. The WAN arrow is already ~100 ms. Cache near the user ([Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/)) or keep the read in-region.
+
+Draw the four numbers on the [Excalidraw](https://excalidraw.com/) sketch next to the boxes they constrain. If a box cannot name a number, it is still a logo.
+
+**Working rule:** QPS, storage, bandwidth, boxes — in that order — with powers of ten. Then pick vertical vs horizontal vs a different data path.
+
+### Summary: Large-Scale Systems: Scalability, Availability, Reliability, and Performance
+
+Large-scale starts when one box, one disk, or one failure domain is no longer the whole story. **Scalability** is growth: vertical first ([Amazon EC2](https://aws.amazon.com/ec2/), [Amazon RDS](https://aws.amazon.com/rds/) sizes), then horizontal ([AWS Auto Scaling](https://aws.amazon.com/autoscaling/), [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), a load balancer). Fast is not scalable. **Availability** is whether the path answers — nines from the [Google SRE availability table](https://sre.google/sre-book/availability-table/), sequence multiplies, independent replicas recover, and HA is not the same as fault tolerance. **Fault tolerance** is the death story: SPOFs, redundancy plus tested failover ([Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/), health checks, [Amazon Route 53](https://aws.amazon.com/route53/)), active-passive versus active-active. **Reliability** is correctness over time, measured as SLIs, targeted as SLOs, contracted as SLAs ([Service Level Objectives](https://sre.google/sre-book/service-level-objectives/), [Prometheus](https://prometheus.io/), [Datadog](https://www.datadoghq.com/), vendor [AWS Service Level Agreements](https://aws.amazon.com/legal/service-level-agreements/)). **Performance** is latency, throughput, and bandwidth as separate axes; SLO the tail; memorize the gaps on [Colin Scott's latency visualization](https://colin-scott.github.io/personal_website/research/interactive_latency.html). **Disaster recovery** is RPO, RTO, backups you restore ([AWS Backup](https://aws.amazon.com/backup/)), and multi-region as a WAN-and-data decision, not a second process. **Capacity planning** is QPS, storage, bandwidth, and boxes on a napkin — [Excalidraw](https://excalidraw.com/) for the picture, a pricing calculator when money is the constraint. Next is **Networking, Protocols, and Web Concepts**.
