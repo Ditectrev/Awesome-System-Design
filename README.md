@@ -1205,3 +1205,452 @@ Draw the four numbers on the [Excalidraw](https://excalidraw.com/) sketch next t
 ### Summary: Large-Scale Systems: Scalability, Availability, Reliability, and Performance
 
 Large-scale starts when one box, one disk, or one failure domain is no longer the whole story. **Scalability** is growth: vertical first ([Amazon EC2](https://aws.amazon.com/ec2/), [Amazon RDS](https://aws.amazon.com/rds/) sizes), then horizontal ([AWS Auto Scaling](https://aws.amazon.com/autoscaling/), [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), a load balancer). Fast is not scalable. **Availability** is whether the path answers — nines from the [Google SRE availability table](https://sre.google/sre-book/availability-table/), sequence multiplies, independent replicas recover, and HA is not the same as fault tolerance. **Fault tolerance** is the death story: SPOFs, redundancy plus tested failover ([Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/), health checks, [Amazon Route 53](https://aws.amazon.com/route53/)), active-passive versus active-active. **Reliability** is correctness over time, measured as SLIs, targeted as SLOs, contracted as SLAs ([Service Level Objectives](https://sre.google/sre-book/service-level-objectives/), [Prometheus](https://prometheus.io/), [Datadog](https://www.datadoghq.com/), vendor [AWS Service Level Agreements](https://aws.amazon.com/legal/service-level-agreements/)). **Performance** is latency, throughput, and bandwidth as separate axes; SLO the tail; memorize the gaps on [Colin Scott's latency visualization](https://colin-scott.github.io/personal_website/research/interactive_latency.html). **Disaster recovery** is RPO, RTO, backups you restore ([AWS Backup](https://aws.amazon.com/backup/)), and multi-region as a WAN-and-data decision, not a second process. **Capacity planning** is QPS, storage, bandwidth, and boxes on a napkin — [Excalidraw](https://excalidraw.com/) for the picture, a pricing calculator when money is the constraint. Next is **Networking, Protocols, and Web Concepts**.
+
+## Networking, Protocols, and Web Concepts
+
+Large-Scale Systems: Scalability, Availability, Reliability, and Performance judged the path. This chapter is the path on the wire: how a packet is addressed, which transport carries it, how a name becomes an IP, how HTTP and TLS wrap the request, and which box — proxy or load balancer — sits in front of your replicas. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the hops in [Excalidraw](https://excalidraw.com/) and naming products only when the choice matters. The next chapter is API Design — the contract those hops carry.
+
+A request is not "the internet." It is DNS, then a TCP (or QUIC) handshake, then TLS, then HTTP, then a reverse proxy or load balancer, then an application. Miss a hop and you cannot explain latency, sticky sessions, or why a 60-second DNS TTL is part of failover.
+
+### IP Addressing
+
+An **IP address** is the identifier routing uses to deliver a packet to a host (or to a load balancer that owns the host's public face). System design does not start at "pick [NGINX](https://nginx.org/)." It starts at "which addresses are public, which are private, and which box performs Network Address Translation (NAT)." The addressing plan lives in a Virtual Private Cloud: **[Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/)**, **[Google Cloud VPC](https://cloud.google.com/vpc)**, or **[Azure Virtual Network](https://azure.microsoft.com/products/virtual-network)**.
+
+**Working rule:** every box on the sketch gets an address class (public, private, link-local) and a failure domain. An unlabeled arrow is not a network.
+
+#### IPv4 and IPv6
+
+**IPv4** ([RFC 791](https://www.rfc-editor.org/rfc/rfc791)) is a 32-bit address, usually written dotted-decimal (`203.0.113.10`). That space is about 4.3 billion addresses and it is exhausted as a public pool. **[IANA](https://www.iana.org/)** publishes the [IPv4 address space](https://www.iana.org/assignments/ipv4-address-space/ipv4-address-space.xhtml). You still design with IPv4 because clients, corporate networks, and a large fraction of the internet still speak it.
+
+**IPv6** ([RFC 8200](https://www.rfc-editor.org/rfc/rfc8200), addressing in [RFC 4291](https://www.rfc-editor.org/rfc/rfc4291)) is a 128-bit address, usually written hexadecimal (`2001:db8::1`). The pool is not the constraint. Dual-stack (both families on the same host) is the common production shape. A load balancer that only has an A record is an IPv4-only front door, even if the backends speak IPv6.
+
+**CIDR** ([RFC 4632](https://www.rfc-editor.org/rfc/rfc4632)) is how you write a network: `10.0.0.0/16` is 65,536 IPv4 addresses, `10.0.1.0/24` is 256. Prefix length is the subnet. Cloud VPCs are CIDR plans with route tables. A `/32` is one IPv4 host. A `/128` is one IPv6 host.
+
+**[Amazon VPC](https://aws.amazon.com/vpc/)**, **[Google Cloud VPC](https://cloud.google.com/vpc)**, **[Azure Virtual Network](https://azure.microsoft.com/products/virtual-network)**
+
+- **Primary function:** a private IP space, subnets, route tables, and security groups / firewall rules so your boxes are not on the public internet by accident.
+- **When we send you here:** the first time the sketch has more than one box that must talk privately, or when you need a public subnet (load balancer, NAT) and a private subnet (application, datastore).
+- **What they are not:** not a substitute for a load balancer, and not IPv6 by default on every account. Read the dual-stack checkbox before you claim "we are on IPv6."
+
+**What you write on the sketch:** the VPC CIDR, public versus private subnets, and whether the front door has an IPv4 address, an IPv6 address, or both. DNS `A` versus `AAAA` records (coming) have to match.
+
+**Working rule:** IPv4 is still the default client path. IPv6 is extra reach, not a personality. Size subnets for the replica count you actually expect, plus headroom — not `/16` because it looks round.
+
+#### Public vs Private Addresses
+
+**Public** addresses are globally routable. [IANA](https://www.iana.org/) and the Regional Internet Registries allocate them. Your users hit a public address (or anycast anycasted to one). Cloud catalogs call this an [Elastic IP](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html) on [AWS](https://aws.amazon.com/), an external IP on [Google Cloud](https://cloud.google.com/), a public IP on [Azure](https://azure.microsoft.com/).
+
+**Private** addresses are not globally routable. [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) reserved three IPv4 blocks for this:
+
+| Block | CIDR | Typical use on a sketch |
+| --- | --- | --- |
+| 10.0.0.0/8 | ~16 million | Large VPC, several environments |
+| 172.16.0.0/12 | ~1 million | Medium VPC |
+| 192.168.0.0/16 | ~65 thousand | Small VPC, home-shaped labs |
+
+*[RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) private IPv4 space. [RFC 6890](https://www.rfc-editor.org/rfc/rfc6890) is the broader special-purpose registry.*
+
+IPv6 unique-local (`fc00::/7`) is the analog; most cloud VPCs hand you a global unicast IPv6 prefix instead and control exposure with firewall rules. Loopback (`127.0.0.1`, `::1`) never leaves the host. Link-local (`169.254.0.0/16`, `fe80::/10`) never leaves the link — on [AWS](https://aws.amazon.com/) the [instance metadata service](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html) famously lives at `169.254.169.254`.
+
+**NAT** is how a private host originates a connection to a public address without owning one. The box that rewrites is a **[NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html)** ([Google Cloud NAT](https://cloud.google.com/nat), [Azure NAT Gateway](https://azure.microsoft.com/products/azure-nat-gateway)). The box that lets a public subnet reach the internet is an **[Internet gateway](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html)**. Do not mix them: an internet gateway does not hide private IPs; a NAT gateway does not accept unsolicited inbound.
+
+**Dynamic vs static** is orthogonal. [DHCP](https://www.rfc-editor.org/rfc/rfc2131) leases are how most private addresses get assigned inside a VPC. A static public IP is what you attach to a front door so DNS can point at it. Ephemeral public IPs on instances are a trap: reboot, new address, DNS lie.
+
+**Working rule:** users and peer networks see public addresses. Application processes and datastores live on private addresses. The NAT/internet-gateway pair is the door. A [PostgreSQL](https://www.postgresql.org/) primary with a public IP is a sketch you redraw.
+
+### The OSI Model
+
+The **Open Systems Interconnection (OSI) model** ([ITU-T X.200](https://www.itu.int/rec/T-REC-X.200), [ISO/IEC 7498-1](https://www.iso.org/standard/20269.html)) splits communication into seven layers so you can say *which* hop you are designing. Production networks run the **Internet protocol suite** (TCP/IP), not a literal seven-stack. You still use OSI numbers because load balancers, packet captures, and vendor SKUs are sold as "Layer 4" and "Layer 7."
+
+| Layer | Name | What you actually design |
+| --- | --- | --- |
+| 7 | Application | HTTP, DNS, TLS as the app sees it, gRPC |
+| 6 | Presentation | Encryption and encoding; in practice folded into TLS + HTTP |
+| 5 | Session | Folded into TCP/TLS; not a box you buy |
+| 4 | Transport | TCP, UDP, QUIC; port, connection |
+| 3 | Network | IP, routing, VPC CIDR |
+| 2 | Data link | Ethernet, AZ-local switching; you rarely draw it |
+| 1 | Physical | Fiber, NIC; capacity-planning bandwidth, not a product logo |
+
+*OSI names from [ITU-T X.200](https://www.itu.int/rec/T-REC-X.200). The working layers on a system-design sketch are L3, L4, and L7.*
+
+**Why this chapter needs the numbers:**
+
+- **Layer 4 load balancing** looks at IP + port (and protocol). It cannot read a URL. [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) is this SKU.
+- **Layer 7 load balancing** looks at HTTP host, path, headers, cookies. [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) is this SKU.
+- **Layer 3** is the VPC and the route table. Getting L4/L7 wrong is how you terminate TLS in the wrong place.
+
+**[Wireshark](https://www.wireshark.org/)** and **[tcpdump](https://www.tcpdump.org/)**
+
+- **Primary function:** capture and decode frames so you can see the layer you thought you were on.
+- **When we send you here:** a timeout you cannot explain, a TLS handshake that never finishes, a health check that uses the wrong port.
+- **What they are not:** not a substitute for [Prometheus](https://prometheus.io/) metrics. A pcap is a microscope. Metrics tell you which request to put under it.
+
+Reciting all seven layers without picking L4 versus L7 for the front door is trivia. The model is a vocabulary, not a design.
+
+**Working rule:** say L3 (addressing), L4 (connection), or L7 (HTTP) for every front-door box. If you cannot, you have not chosen a load balancer yet.
+
+### TCP and UDP
+
+Two transport protocols carry almost every request you will draw. **TCP** ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293)) is connection-oriented: three-way handshake (SYN, SYN-ACK, ACK), ordered byte stream, retransmission, congestion control. **UDP** ([RFC 768](https://www.rfc-editor.org/rfc/rfc768)) is datagrams: no handshake, no retransmission, no ordering. Neither is "better." They optimize different failure modes.
+
+| | TCP | UDP |
+| --- | --- | --- |
+| Connection | Handshake, teardown | None |
+| Delivery | Retransmits until it gives up | Best-effort |
+| Order | Byte stream is ordered | Per-datagram; app orders if it cares |
+| Congestion | Built in | App or a layer above (QUIC) |
+| Head-of-line | A lost packet stalls the stream | A lost datagram is just gone |
+| Typical use | HTTP/1.1, HTTP/2, [PostgreSQL](https://www.postgresql.org/) wire, SSH | DNS queries, video, VoIP, HTTP/3 |
+
+*TCP as [RFC 9293](https://www.rfc-editor.org/rfc/rfc9293); UDP as [RFC 768](https://www.rfc-editor.org/rfc/rfc768). HTTP/3 runs on [QUIC](https://www.rfc-editor.org/rfc/rfc9000), which is UDP plus its own handshake, crypto, and retransmission.*
+
+**What TCP costs you on a sketch:**
+
+- **Handshake + slow start.** A new connection to a far region pays a WAN RTT before the first byte. Connection reuse (HTTP keep-alive, HTTP/2 multiplexing) exists because of this.
+- **Head-of-line blocking.** HTTP/2 multiplexes streams on one TCP connection; a lost packet still stalls every stream. That is a reason HTTP/3 exists.
+- **Retries.** TCP already retried. An impatient application retry on top of that is how you amplify a blip into a stampede. Timeouts belong at the application; they must be longer than the TCP recovery you are willing to wait for, and shorter than the user.
+
+**What UDP costs you:**
+
+- **You own loss.** DNS, games, and media accept a missing packet. A file transfer over raw UDP does not, unless you rebuild TCP.
+- **Firewalls and NAT.** Stateful NAT boxes remember TCP connections more happily than UDP flows. UDP keepalives and QUIC connection IDs exist because of NAT.
+
+**[QUIC](https://www.rfc-editor.org/rfc/rfc9000)** (and **[HTTP/3](https://www.rfc-editor.org/rfc/rfc9114)** on top of it) takes UDP, adds a crypto handshake that combines TCP+TLS into one round trip, and retransmits *per stream* so one loss does not stall the others. [Cloudflare](https://www.cloudflare.com/) and [Amazon CloudFront](https://aws.amazon.com/cloudfront/) terminate HTTP/3 at the edge so origins can stay on HTTP/1.1 or HTTP/2. You do not have to run QUIC on [PostgreSQL](https://www.postgresql.org/).
+
+**When we pick TCP:** request/response with a correctness contract (almost every API, every datastore protocol you will name in this book). **When we pick UDP:** latency-sensitive media, DNS, or a protocol that already rebuilt reliability (QUIC, parts of [WebRTC](https://webrtc.org/) — that last one waits for Message Queues, Streams, and Real-Time Communication).
+
+**Working rule:** TCP if a missing byte is a bug. UDP if a late byte is worse than a missing one. HTTP/3 is UDP on the wire and TCP-like in the contract; name it when the edge already speaks it, not to sound current.
+
+### Domain Name System
+
+**DNS** ([RFC 1034](https://www.rfc-editor.org/rfc/rfc1034), [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035)) translates a name (`api.example.com`) into a record set (addresses, aliases, mail exchangers, text). It is the first hop of almost every user request and a control plane for failover. A 60-second TTL is part of your RTO. Pretending DNS is "just a name" is how failovers take an hour.
+
+You will operate DNS in two roles: **authoritative** (the records for your zones) and **recursive** (what clients ask). Products: **[Amazon Route 53](https://aws.amazon.com/route53/)**, **[Google Cloud DNS](https://cloud.google.com/dns)**, **[Azure DNS](https://azure.microsoft.com/products/dns)**, **[Cloudflare DNS](https://www.cloudflare.com/application-services/products/dns/)**. On [Kubernetes](https://kubernetes.io/), **[CoreDNS](https://coredns.io/)** is the in-cluster recursive/authoritative hybrid. Public recursors you can point a laptop at: **[Google Public DNS](https://developers.google.com/speed/public-dns)** (`8.8.8.8`), **[1.1.1.1](https://one.one.one.one/)** from [Cloudflare](https://www.cloudflare.com/).
+
+#### How DNS Resolution Works
+
+A lookup is a chain. The stub resolver on the client asks a **recursive resolver**. If the answer is not cached, the recursor walks:
+
+1. **Root** — the [IANA root servers](https://www.iana.org/domains/root/servers) (13 named identities, many anycast instances). They do not know `example.com`. They know who owns `.com`.
+2. **TLD** — the `.com` (or `.io`, `.dev`) nameservers. They know which authoritative servers own `example.com`.
+3. **Authoritative** — your zone. They return the `A`/`AAAA`/`CNAME` (or `NXDOMAIN`).
+
+The recursor caches each step for that record's **TTL**. The client caches too (OS and browser). So do [Cloudflare](https://www.cloudflare.com/) and [Amazon CloudFront](https://aws.amazon.com/cloudfront/) if they sit on the path. Three caches in a row means a TTL of 60 seconds is a *lower bound* on how fast you can move traffic by changing a record, not a guarantee.
+
+**[dig](https://bind9.readthedocs.io/en/latest/manpages.html#dig-dns-lookup-utility)** (ships with **[BIND](https://www.isc.org/bind/)**) and **[curl](https://curl.se/)**
+
+- **Primary function:** [`dig`](https://bind9.readthedocs.io/en/latest/manpages.html#dig-dns-lookup-utility) prints the record set and the TTL the recursor handed you. [`curl`](https://curl.se/) (`-I`, `-v`, `--resolve`) is how you see the HTTP hop after DNS.
+- **When we send you here:** "DNS is wrong" and "TLS is wrong" are the two most common first-hop bugs. Prove which hop before you redraw the VPC.
+- **What they are not:** not load tests. One lookup is a fact. A thousand QPS of lookups is a recursor and a TTL design.
+
+**Anycast** is how those 13 root identities are actually thousands of machines: the same prefix, announced from many places, so the client hits a nearby instance. [Cloudflare](https://www.cloudflare.com/) and [Amazon Route 53](https://aws.amazon.com/route53/) use the same trick for your zone. Anycast is routing, not a health check. A dead anycast instance still needs the operator to withdraw the route.
+
+**Working rule:** draw stub → recursor → (root / TLD / auth) only when you are debugging DNS. On a product sketch, draw the **authoritative product** and the **TTL**. The TTL is failover math.
+
+#### Record Types and Caching
+
+Records are the contract. TTL is the cache lease. Wrong type is a silent outage (CNAME at the zone apex, `A` where you needed `ALIAS`, missing `AAAA` on a dual-stack front door).
+
+| Type | Job | Watch-out |
+| --- | --- | --- |
+| `A` | Name → IPv4 | One address is a SPOF unless you have several, or a load balancer in front |
+| `AAAA` | Name → IPv6 | Absence means IPv6 clients may fail or Happy-Eyeballs to IPv4 |
+| `CNAME` | Name → another name | Cannot sit at the zone apex in classic DNS; follow the chain, add the TTLs |
+| `NS` | Delegates a zone | Wrong NS is "the internet thinks someone else owns you" |
+| `MX` | Mail routing | Not your API path; still a zone you can break |
+| `TXT` | Arbitrary text | SPF/DKIM, ACME challenges for [Let's Encrypt](https://letsencrypt.org/) |
+| `SRV` | Service location | gRPC and some meshes; most HTTP skips this |
+| `CAA` | Which CAs may issue | Blocks a mis-issued cert if you set it |
+| `PTR` | Reverse DNS (IP → name) | Mail and some allowlists; not the user request path |
+
+*Record types as used on [Amazon Route 53](https://aws.amazon.com/route53/) and [Cloudflare DNS](https://www.cloudflare.com/application-services/products/dns/). Apex "ALIAS" / "ANAME" / [Amazon Route 53](https://aws.amazon.com/route53/) alias records are vendor flatteners so you can point the zone root at a load balancer without a forbidden CNAME.*
+
+**[Amazon Route 53](https://aws.amazon.com/route53/)**
+
+- **Primary function:** authoritative DNS plus health-checked failover, latency, geolocation, and weighted routing. Alias records target [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/), and similar without a CNAME-at-apex fight.
+- **When we send you here:** the name of a public path on [AWS](https://aws.amazon.com/), or DNS failover as the traffic mover from the previous chapter.
+- **What it is not:** not a recursor for your laptops (use [1.1.1.1](https://one.one.one.one/) or [Google Public DNS](https://developers.google.com/speed/public-dns) for that). Not a load balancer. Health checks plus a 60-second TTL still leave a minute of bad answers in caches you do not control.
+
+**Caching rules that bite:**
+
+- **Positive TTL.** Lower it before a move, wait out the old TTL, then change the record. Changing first and lowering after does nothing for already-cached answers.
+- **Negative TTL** (`NXDOMAIN` / `NODATA`) comes from the zone's `SOA` minimum. A mistyped cutover can cache "does not exist" longer than you wanted.
+- **CNAME chains** add. The client follows every hop; each hop has its own TTL.
+- **Browser and OS caches** ignore your wishes. [`dig`](https://bind9.readthedocs.io/en/latest/manpages.html#dig-dns-lookup-utility) against `8.8.8.8` is not what [Google Chrome](https://www.google.com/chrome/) has in memory.
+
+**Working rule:** the record type must match the front door (A/AAAA or vendor alias, not a hope). The TTL is a failover number. Write both on the [Excalidraw](https://excalidraw.com/) name box.
+
+### HTTP, HTTPS, and the Web Request Path
+
+**HTTP** is the application protocol most user-facing paths speak. The current semantics live in [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110). **[MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/HTTP)** is the readable map. **HTTPS** is HTTP over TLS (next heading). The version on the wire matters:
+
+- **HTTP/1.1** — one request at a time per connection unless you pipeline (almost nobody does, well). Browsers open several connections. [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112).
+- **HTTP/2** ([RFC 9113](https://www.rfc-editor.org/rfc/rfc9113)) — multiplexed streams on one TCP connection, HPACK headers, still TCP head-of-line blocking.
+- **HTTP/3** ([RFC 9114](https://www.rfc-editor.org/rfc/rfc9114)) — HTTP over [QUIC](https://www.rfc-editor.org/rfc/rfc9000)/UDP, per-stream loss recovery.
+
+The **web request path** you should be able to draw without looking:
+
+1. DNS lookup for the host.
+2. TCP or QUIC handshake to the address (often a load balancer or edge, not the app).
+3. TLS handshake (HTTPS), with SNI so the front door knows which certificate to present.
+4. HTTP request: method, path, headers, optional body.
+5. Reverse proxy / load balancer: TLS termination or passthrough, routing, health, maybe buffering.
+6. Application, then the datastore/cache/queue the previous chapters named.
+
+[Cloudflare](https://www.cloudflare.com/) or [Amazon CloudFront](https://aws.amazon.com/cloudfront/) may sit at step 2 as an edge. Caching and Content Delivery Networks is that chapter. Here, the edge is just another hop that speaks HTTP and TLS.
+
+**Working rule:** name the protocol version only when it changes a hop (HTTP/2 to an [Envoy](https://www.envoyproxy.io/) mesh, HTTP/3 at the edge). Always name the six steps. A missing step is where your p99 went.
+
+#### Methods, Status Codes, and Headers
+
+**Methods** ([MDN request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods), [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)) are the verb. **Idempotent** means repeating the request has the same *resource* effect (GET, PUT, DELETE, HEAD, OPTIONS). **Safe** means no intended state change (GET, HEAD, OPTIONS). POST is neither. PATCH is not idempotent unless you design it to be. API Design will make this a contract. Here you only need: load balancers and caches treat GET as replayable; a retried POST can double-charge unless you add an idempotency key later.
+
+**Status codes** ([MDN status codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status)):
+
+- **2xx** — the hop that generated the response thinks it succeeded. `200 OK`, `201 Created`, `204 No Content`, `206 Partial Content`.
+- **3xx** — look elsewhere. `301` is permanent (caches, SEO, URL shorteners later). `302`/`307` are temporary. `304` is a cache hit via conditional GET.
+- **4xx** — the client (or the token) is the problem. `400`, `401` unauthenticated, `403` authenticated but not allowed, `404`, `409` conflict, `429` rate-limited.
+- **5xx** — this hop, or a hop behind it, failed. `500` bug, `502` bad gateway (proxy got garbage), `503` overloaded or draining, `504` gateway timeout.
+
+A load balancer that turns an app `500` into a `502` is a hop you have to know about when you SLO. Yield-based availability from the previous chapter is "not 5xx" unless you said otherwise; a `404` is usually a successful *path*.
+
+**Headers** are how hops talk about the request without changing the path:
+
+- **`Host` / `:authority`** — virtual hosting. One [NGINX](https://nginx.org/) or [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) can route many names.
+- **`Content-Type`, `Accept`** — body contract. Wrong type is a 415, not a mystery.
+- **`Cache-Control`, `ETag`, `If-None-Match`** — HTTP caching. [MDN ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag). CDN behavior waits for the caching chapter; the headers start here.
+- **`Authorization`** — a token, not a design. Security and Authentication is later.
+- **`X-Forwarded-For` / `Forwarded`** ([RFC 7239](https://www.rfc-editor.org/rfc/rfc7239)) — the client IP as rewritten by proxies. The app must *trust* the hop that set it or clients will spoof it.
+- **`X-Forwarded-Proto`** — whether the original client used HTTPS. Mixed content and cookie `Secure` flags depend on this if TLS terminated at the load balancer.
+
+**[curl](https://curl.se/)** is how you inspect this without a browser. [`curl -I`](https://curl.se/docs/manpage.html) for headers, `-v` for the TLS and HTTP dance, `-X` for the method. It is a tool, not a load test.
+
+**Working rule:** method = verb + idempotency story. Status = which hop failed. Headers = how the proxy and the app share facts (client IP, proto, cache). Write `Host` on every virtual-hosted front door.
+
+#### Cookies, Sessions, and CORS
+
+**Cookies** ([MDN HTTP cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies), [RFC 6265](https://www.rfc-editor.org/rfc/rfc6265)) are the browser's way to send a small blob back on later requests to the same site. `Set-Cookie` on the response; `Cookie` on the next request. Flags that matter on a sketch:
+
+- **`HttpOnly`** — not visible to JavaScript. Use it for session IDs.
+- **`Secure`** — only on HTTPS. Required if you terminated TLS correctly.
+- **`SameSite`** (`Strict` / `Lax` / `None`) — whether the cookie rides on cross-site requests. `None` requires `Secure`.
+- **`Domain` / `Path` / `Max-Age`** — scope and lifetime. A cookie on `.example.com` is visible to every subdomain; that is a blast radius.
+
+A **session** is server-side state keyed by that cookie (or by a token). Sticky sessions on a load balancer pin the client to the replica that holds the session in memory. That is a patch. The design is a shared store: **[Redis](https://redis.io/)** or **[Amazon ElastiCache](https://aws.amazon.com/elasticache/)**. Tokens (JWT and friends) wait for Security and Authentication. Here: if the replica is allowed to die, the session cannot live only in that replica's RAM.
+
+**CORS** (Cross-Origin Resource Sharing, [MDN CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS), [Fetch Living Standard](https://fetch.spec.whatwg.org/#http-cors-protocol)) is the browser rule that a page at `https://app.example.com` may not read `https://api.example.com` unless the API opts in with headers (`Access-Control-Allow-Origin`, methods, headers, credentials). A **preflight** (`OPTIONS`) happens when the request is not a simple GET/POST. [NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/), [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), and API gateways (next chapter) can answer preflights so the app never sees them.
+
+CORS is a *browser* policy. `curl` does not care. A mobile app does not care. Do not "fix" a server-to-server 403 by adding CORS headers.
+
+**Working rule:** cookies are a client-side pointer; sessions are server-side state that must survive replica death. CORS is only for browsers on another origin. Sticky sessions are not a session store.
+
+### TLS, SSL, and mTLS
+
+**SSL** is the old name. **TLS** is the protocol you use. The current version is **TLS 1.3** ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)). SSLv3 is broken; TLS 1.0/1.1 are retired. If a vendor still says "SSL certificate," they mean a certificate you present during a TLS handshake.
+
+TLS gives you three properties on the wire: **authentication** of the server (and optionally the client), **confidentiality**, **integrity**. It is not authorization (that is an application token). It is not a web application firewall ([AWS WAF](https://aws.amazon.com/waf/)). A terminated TLS session that then travels HTTP across a VPC is only as trusted as that VPC.
+
+**The handshake, as a designer sees it:**
+
+1. Client connects (TCP, or QUIC where crypto is built in).
+2. **SNI** (Server Name Indication) tells the front door which hostname — and therefore which certificate — is requested.
+3. Server presents a certificate chain. The client checks signatures up to a trusted CA, expiry, hostname, and optionally **[Certificate Transparency](https://certificate.transparency.dev/)** logs.
+4. Keys are agreed. Application data (HTTP) follows, integrity-protected.
+
+**Where you terminate:**
+
+- **At the edge** — [Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/), [Azure Front Door](https://azure.microsoft.com/products/frontdoor). Origin may see HTTP or a second TLS session (re-encrypt).
+- **At the load balancer** — [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Application Gateway](https://azure.microsoft.com/products/application-gateway), [NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/), [Caddy](https://caddyserver.com/), [Traefik](https://traefik.io/traefik/). Apps see HTTP and `X-Forwarded-Proto`.
+- **At the application** — passthrough L4 ([AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/)) or TLS in the process. You keep cookies and client certs intact. You pay operational cost.
+
+**Certificates you actually obtain:**
+
+**[Let's Encrypt](https://letsencrypt.org/)**
+
+- **Primary function:** free public CA via ACME. Short-lived certs, automated renewal.
+- **When we send you here:** public hostnames, especially with **[Caddy](https://caddyserver.com/)** (ACME built in), **[Traefik](https://traefik.io/traefik/)**, or **[cert-manager](https://cert-manager.io/)** on [Kubernetes](https://kubernetes.io/).
+- **What it is not:** not a private CA for mTLS between services. Rate limits and HTTP-01/DNS-01 challenges are real constraints.
+
+**[AWS Certificate Manager](https://aws.amazon.com/certificate-manager/)** (and [Google Cloud Certificate Manager](https://cloud.google.com/certificate-manager/docs), [Azure Key Vault certificates](https://learn.microsoft.com/azure/key-vault/certificates/about-certificates))
+
+- **Primary function:** issue or import certs and attach them to that cloud's load balancers and CDNs. ACM public certs on [AWS](https://aws.amazon.com/) do not leave ACM — they attach to [Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) and [CloudFront](https://aws.amazon.com/cloudfront/).
+- **When we send you here:** the front door is already a managed load balancer in that cloud.
+- **What they are not:** not a reason to copy a private key onto twelve VMs. If the cert has to live on a VM, use [Let's Encrypt](https://letsencrypt.org/) plus automation, or a secrets store the Security chapter will name.
+
+**[SSL Labs Server Test](https://www.ssllabs.com/ssltest/)** and **[Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/)**
+
+- **Primary function:** grade a public handshake; emit a known-good [NGINX](https://nginx.org/) / [Apache HTTP Server](https://httpd.apache.org/) / [HAProxy](https://www.haproxy.org/) config.
+- **When we send you here:** after you think TLS works. The generator is how you pick a cipher policy on purpose.
+- **What they are not:** not an mTLS test. They speak like a browser, not like a sidecar. Clients still include old [Android](https://www.android.com/).
+
+**mTLS (mutual TLS)** is TLS plus a client certificate the server verifies. Service-to-service identity, not user login. **[SPIFFE](https://spiffe.io/)** / **[SPIRE](https://spiffe.io/spire/)** is the identity document many meshes issue. **[Istio](https://istio.io/)** and **[Envoy](https://www.envoyproxy.io/)** can enforce it; Architectural Patterns, Microservices, and Cloud-Native Architecture is the mesh chapter. Here: mTLS authenticates *workloads*. It does not replace an authorization policy. Rotating client certs is the operational cost you just bought.
+
+**[OpenSSL](https://www.openssl.org/)** is the CLI you use to print a chain (`s_client`, `x509`). It is not a CA.
+
+**Working rule:** say where TLS terminates, who issued the cert, and whether the next hop is HTTP or TLS again. mTLS is for workload identity, issued by a private CA or [SPIFFE](https://spiffe.io/), not by [Let's Encrypt](https://letsencrypt.org/).
+
+### Proxies
+
+A **proxy** is a hop that takes a request and forwards it, optionally changing TLS, headers, buffering, auth, or the destination. "We put a proxy in front" is not a design until you say **forward or reverse**, and whether it is also the load balancer.
+
+#### Forward Proxy vs Reverse Proxy
+
+**Forward proxy:** the *client* (or the egress NAT of a company) chooses the proxy. The origin sees the proxy's IP. Use cases: corporate egress, allowlists, developers reaching the public internet from private subnets, some crawling. Product: **[Squid](https://www.squid-cache.org/)**. Cloud analog: an HTTP proxy on a central egress, or [AWS PrivateLink](https://aws.amazon.com/privatelink/) / VPC endpoints when you are avoiding the public internet altogether rather than forwarding HTTP.
+
+**Reverse proxy:** the *server operator* puts the proxy in front of origin servers. The client thinks it is talking to the origin. TLS, routing, compression, static files, authn, buffering, WebSocket upgrade. Products: **[NGINX](https://nginx.org/)**, **[Envoy](https://www.envoyproxy.io/)**, **[HAProxy](https://www.haproxy.org/)**, **[Caddy](https://caddyserver.com/)**, **[Traefik](https://traefik.io/traefik/)**, plus every cloud HTTP load balancer.
+
+**[NGINX](https://nginx.org/)**
+
+- **Primary function:** reverse proxy, static file server, TLS terminator, optional L4 (`stream`) proxy. The software you can actually draw as a box in front of app processes.
+- **When we send you here:** you need path-based routing, TLS, and buffering on VMs or as a sidecar, and you are not yet on a managed ALB.
+- **What it is not:** not automatically a cluster. One [NGINX](https://nginx.org/) is a SPOF until there are two and a balancer in front, or a managed equivalent.
+
+**[Envoy](https://www.envoyproxy.io/)**
+
+- **Primary function:** programmable L4/L7 proxy: HTTP/2 and HTTP/3, gRPC, retries, outlier detection, TLS/mTLS. The data plane inside many meshes.
+- **When we send you here:** sidecar or gateway with dynamic config, or when you need consistent L7 policy across languages.
+- **What it is not:** not a reason to start with a mesh. A managed load balancer plus [NGINX](https://nginx.org/) still reverse-proxies.
+
+**[Squid](https://www.squid-cache.org/)**
+
+- **Primary function:** forward / caching proxy for *outbound* HTTP.
+- **When we send you here:** explicit egress control, not a public front door.
+- **What it is not:** not an [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/). Putting [Squid](https://www.squid-cache.org/) on the inbound path is the wrong direction.
+
+**Working rule:** forward proxy is chosen by the client (egress). Reverse proxy is chosen by you (ingress). Draw the arrow of who configured it.
+
+#### Load Balancer vs Reverse Proxy
+
+These boxes overlap in products and split in jobs.
+
+**Reverse proxy** emphasizes *what you do to the request*: TLS, headers, buffering, routing on host/path, serving `/static`, gzip, auth. It may have one origin.
+
+**Load balancer** emphasizes *which origin*: health checks, spreading, failover, sometimes L4 only. It may not read HTTP.
+
+[NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), [Envoy](https://www.envoyproxy.io/), [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), and [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) are often **both**. [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) and [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) are L4 balancers that do not pretend to be HTTP reverse proxies.
+
+**How you choose the words on a sketch:**
+
+- One app box behind [NGINX](https://nginx.org/) for TLS and `Host` routing → reverse proxy.
+- Many app boxes, health checks, no HTTP inspection → load balancer (L4).
+- Many app boxes, path routing, TLS, health checks → both; name the product and the layer.
+
+**Working rule:** "proxy" is the hop. "Load balancer" is the spreading behavior. If there is only one origin and no health check, you drew a reverse proxy, not a balancer.
+
+### Load Balancing
+
+**Load balancing** is how you spread traffic across healthy replicas so no single instance is the path. Large-Scale Systems named it as the horizontal front door. This is the layer, the algorithm, and the health-check story.
+
+Managed products: **[AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/)** (ALB, NLB, Gateway), **[Google Cloud Load Balancing](https://cloud.google.com/load-balancing)**, **[Azure Load Balancer](https://azure.microsoft.com/products/load-balancer)**, **[Azure Application Gateway](https://azure.microsoft.com/products/application-gateway)**, **[Azure Front Door](https://azure.microsoft.com/products/frontdoor)**, **[AWS Global Accelerator](https://aws.amazon.com/global-accelerator/)**. Software: **[NGINX](https://nginx.org/)**, **[HAProxy](https://www.haproxy.org/)**, **[Envoy](https://www.envoyproxy.io/)**. DNS is a crude balancer (multiple `A` records, [Route 53](https://aws.amazon.com/route53/) weighted/failover). DNS does not connection-drain a dying replica; a real balancer does.
+
+#### Layer 4 vs Layer 7 Load Balancing
+
+**Layer 4** (transport): decide on IP, port, protocol (TCP/UDP). The balancer may NAT or pass through. It cannot read `/api/v1` or a cookie. Pros: cheap, fast, protocol-agnostic (databases, TLS passthrough, gRPC-on-TCP). Cons: no path routing, no HTTP header rewrites, no browser-friendly redirects.
+
+**Layer 7** (application): decide on HTTP host, path, header, method, cookie. Can terminate TLS, attach a web application firewall ([AWS WAF](https://aws.amazon.com/waf/)), route gRPC, set sticky cookies. Pros: one front door for many services. Cons: it is in the HTTP business now — header size, timeouts, WebSocket upgrade, HTTP/2.
+
+| | Layer 4 | Layer 7 |
+| --- | --- | --- |
+| Sees | IP, port, TCP/UDP | HTTP/gRPC |
+| TLS | Passthrough (or terminate blindly) | Usually terminates, can re-encrypt |
+| Routing | 5-tuple / IP hash | Host, path, header, cookie |
+| Typical SKU | [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer), [HAProxy](https://www.haproxy.org/) `mode tcp`, [NGINX](https://nginx.org/) `stream` | [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), [Azure Application Gateway](https://azure.microsoft.com/products/application-gateway), [NGINX](https://nginx.org/) `http`, [Envoy](https://www.envoyproxy.io/) |
+| Use when | Databases, TLS passthrough, extreme PPS, non-HTTP | HTTP APIs, host/path routing, cookie stickiness, [AWS WAF](https://aws.amazon.com/waf/) at the edge |
+
+*L4 vs L7 is an OSI number plus a SKU. [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) sells both under one family; read the proxy vs pass-through row of their docs.*
+
+**[AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/)** vs **[AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/)**
+
+- **ALB primary function:** L7 HTTP/HTTPS/gRPC, host and path rules, TLS via [ACM](https://aws.amazon.com/certificate-manager/), target groups of instances, IPs, or [Lambda](https://aws.amazon.com/lambda/).
+- **NLB primary function:** L4 TCP/UDP/TLS, source-IP preservation, static per-AZ addresses, passthrough to a TLS origin.
+- **When we send you here:** ALB for user HTTP. NLB for TLS passthrough, for a [Kubernetes](https://kubernetes.io/) `LoadBalancer` Service that should not parse HTTP, or for non-HTTP.
+- **What they are not:** not interchangeable. An NLB will not route `/payments` to a different target group. An ALB will not front a [PostgreSQL](https://www.postgresql.org/) port.
+
+**Working rule:** HTTP user traffic → L7. Anything that is not HTTP, or TLS you must not terminate → L4. Write the layer on the box.
+
+#### Routing Algorithms
+
+The algorithm is how the balancer picks a *healthy* target. Unhealthy targets are not in the set (next heading). Famous names:
+
+- **Round robin** — next replica in a loop. Fine when replicas are equal and connections are short.
+- **Weighted round robin** — bigger replica gets more. Useful while you migrate instance sizes.
+- **Least connections** — send to whoever has fewer open connections. Better when requests have heavy-tailed duration.
+- **Least response time / least load** — needs a metric. Lies if the metric is CPU and the bottleneck is the datastore.
+- **Random / two choices (power of two)** — pick two, take the less loaded. Cheap and surprisingly even.
+- **IP hash / cookie hash** — stickiness by key. Session affinity. Not a session store.
+- **Consistent hashing** — minimize remapping when a replica joins or leaves. Algorithms and Data Structures for System Design is the chapter; [Envoy](https://www.envoyproxy.io/) and some caches use it here. Do not start with it for a stateless API.
+- **[Maglev](https://cloud.google.com/blog/products/networking/google-cloud-networking-in-depth-how-and-why-we-chose-maglev-as-our-load-balancer)** — Google's large-scale L4 consistent-hashing balancer; [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) documents the idea in that same post. You name it when the SKU is that shape, not to decorate a sketch.
+
+[HAProxy](https://www.haproxy.org/) and [NGINX](https://nginx.org/) expose these as `balance` / `upstream` directives. [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) defaults to round robin (with slow-start and, for some target types, least outstanding requests). Read the default before you invent a hash.
+
+**Working rule:** stateless equal replicas → round robin or least connections. Stickiness → a shared [Redis](https://redis.io/) first, a hash only if you cannot. Consistent hashing → when adding a replica must not reshuffle all connections (caches, some stateful streams).
+
+#### Health Checks, Sticky Sessions, and Failover
+
+**Health checks** are how the balancer knows a replica may receive traffic. Without them you have round-robin to the dead.
+
+- **Active** — the balancer probes (`GET /healthz`, TCP connect). [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) target health, [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) health checks, [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) probes, [HAProxy](https://www.haproxy.org/) `option httpchk`.
+- **Passive / outlier** — [Envoy](https://www.envoyproxy.io/) ejects a target that is already 5xx-ing. Faster to notice; easier to eject everyone during a bad deploy.
+- **[Kubernetes](https://kubernetes.io/) [liveness, readiness, and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)** — liveness restarts a stuck process; **readiness** is the one that looks like a load-balancer health check (remove from Service endpoints). Do not point liveness at a dependency: a down [PostgreSQL](https://www.postgresql.org/) should not restart every pod in a loop.
+
+A **health endpoint** that checks the datastore on every probe can DDoS the datastore. Check the process, cheaply; check dependencies less often, or as a separate "deep" probe the balancer does not use to flap.
+
+**Sticky sessions (session affinity):** the balancer sends the same client to the same replica (cookie on L7, IP hash on L4). Use them to drain in-memory sessions you have not moved yet. Do not design new paths on them: a replica death still drops those sessions; autoscaling becomes unfair; a hashed client can pin a hot user to one box. Put the session in [Redis](https://redis.io/) / [Amazon ElastiCache](https://aws.amazon.com/elasticache/).
+
+**Failover and draining:**
+
+- **Deregistration delay / connection draining** — stop sending *new* requests, wait for in-flight to finish, then kill the replica. [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) connection draining, [Kubernetes](https://kubernetes.io/) `preStop` + `terminationGracePeriodSeconds`.
+- **DNS failover** — [Amazon Route 53](https://aws.amazon.com/route53/) health checks plus failover records, [Azure Traffic Manager](https://azure.microsoft.com/products/traffic-manager), [Cloudflare](https://www.cloudflare.com/). TTL is the RTO floor, as in the previous chapter.
+- **Panic / fail-open** — some balancers send to everyone if *all* checks fail, on the theory that a bad probe is worse than a bad app. Know which SKU you bought.
+
+**Working rule:** readiness (or the cloud health check) gates traffic. Liveness restarts a process. Stickiness is a migration crutch. Drain before you kill.
+
+### Clustering vs Load Balancing
+
+People say "we clustered it" when they mean "we load balanced it." They are different shapes.
+
+**Load balancing** spreads *requests* across replicas that do not need to know about each other. State lives elsewhere ([PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Amazon S3](https://aws.amazon.com/s3/)). Adding a replica is a health check and a target group. This is the stateless hop.
+
+**Clustering** is a set of nodes that **share membership and often share state**: replica sets, shards, quorum, gossip. [PostgreSQL](https://www.postgresql.org/) with a primary and standbys, [Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/), [Apache Kafka](https://kafka.apache.org/) brokers, a [Kubernetes](https://kubernetes.io/) control plane. You cannot round-robin writes at a [PostgreSQL](https://www.postgresql.org/) primary and call it a cluster. The cluster protocol decides who is primary.
+
+| | Load balancing | Clustering |
+| --- | --- | --- |
+| Unit of work | A request | Membership, replication, quorum |
+| Who picks the node | The balancer | The cluster protocol (and sometimes a balancer in front) |
+| Shared state | Avoided on the node | The point |
+| Failure | Remove from the pool | Election, failover, split brain (Distributed Systems) |
+
+**How they compose:**
+
+- Stateless APIs: **load balancer** in front, no cluster required. [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/) is an in-cluster balancer ([kube-proxy](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/)). [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) or [Gateway API](https://gateway-api.sigs.k8s.io/) is L7 on top.
+- Datastores: **cluster** (primary + replicas, or shards), *then* optionally a balancer or a smart client that speaks the protocol ([HAProxy](https://www.haproxy.org/) in TCP mode to a primary, not ALB path rules).
+- Caches: a fleet behind a balancer is not [Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/). Cluster means slots and a hash. Algorithms (consistent hashing) later.
+
+**Working rule:** if nodes are interchangeable and stateless, you load balanced. If nodes vote, replicate, or own a key range, you clustered. Draw both when both exist; never use the words as synonyms.
+
+### Checksums and Integrity on the Wire
+
+A **checksum** is a compact fingerprint of bytes so a hop can ask "did this get flipped?" It is not encryption. It is not authentication by itself (anyone who can change the bytes can change a CRC). Integrity that *also* authenticates the sender is a MAC or an AEAD, which is what **TLS** does ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)).
+
+**Layers you will actually meet:**
+
+- **Ethernet FCS (CRC-32)** — frames on a link. You never draw it; it is why L2 corruption rarely surfaces as application garbage.
+- **IP header checksum** — IPv4 header only ([RFC 791](https://www.rfc-editor.org/rfc/rfc791)). IPv6 dropped it; L4 and L2 cover more.
+- **TCP checksum** ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293), computation in [RFC 1071](https://www.rfc-editor.org/rfc/rfc1071)) — 16-bit, one's complement, covers header + payload + pseudo-header. Cheap and **weak**. Silent corruption through NICs and middleboxes is a known class of bug. Do not use "TCP already checksums" as an application integrity story.
+- **UDP checksum** — optional in IPv4, required in IPv6. Zero means "not computed" on IPv4. DNS over UDP is in this world.
+- **TLS AEAD** — encrypts and authenticates records. If you terminated TLS at the load balancer, the hop to the app is *not* covered unless you TLS again or you trust the VPC.
+- **Application fingerprints** — [SHA-256](https://csrc.nist.gov/pubs/fips/180-4/upd1/final) of a blob in [Amazon S3](https://aws.amazon.com/s3/) (`ETag` is often MD5 of the object, and multipart ETags are not a simple MD5 — read the S3 docs before you compare). HTTP **[ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag)** is a validator for caches, which may be a hash or a version token. **MD5** is collision-broken for security; it is still a fast accidental-corruption detector if you do not have an adversary.
+
+**What to put on a sketch:**
+
+- User ↔ edge: TLS. If there is no TLS, integrity is "hope plus TCP."
+- Edge ↔ origin: TLS re-encrypt, a mesh mTLS, or an explicit decision to trust the private network.
+- Object uploads: store a SHA-256 the client sent, verify on GET. S3's own checksum features ([Amazon S3 extra checksums](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)) exist so you do not invent a parallel trailer.
+- Payloads you cannot trust a proxy not to mutate: sign them (application MAC, later Security). A CRC on JSON is not a signature.
+
+**Working rule:** checksums detect accidents; TLS (or a MAC) detects tampering. TCP's checksum is not your object store's integrity story. After TLS termination, say what still protects the next hop.
+
+### Summary: Networking, Protocols, and Web Concepts
+
+The request path on the wire is address, transport, name, HTTP, TLS, then a proxy or balancer. **IP** is public versus [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) private, planned as CIDR in [Amazon VPC](https://aws.amazon.com/vpc/) (or [Google Cloud VPC](https://cloud.google.com/vpc), [Azure Virtual Network](https://azure.microsoft.com/products/virtual-network)), with NAT and an internet gateway as the door. **OSI** is vocabulary: design at L3, L4, and L7. **TCP** is the reliable stream ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293)); **UDP** is datagrams; **HTTP/3** is [QUIC](https://www.rfc-editor.org/rfc/rfc9000) on UDP. **DNS** ([Amazon Route 53](https://aws.amazon.com/route53/), [Cloudflare DNS](https://www.cloudflare.com/application-services/products/dns/), [CoreDNS](https://coredns.io/)) is a lookup chain plus a TTL that *is* failover math; prove it with [dig](https://bind9.readthedocs.io/en/latest/manpages.html#dig-dns-lookup-utility). **HTTP** ([RFC 9110](https://www.rfc-editor.org/rfc/rfc9110), [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP)) is method, status, headers, cookies, and CORS-for-browsers; sessions survive replica death in [Redis](https://redis.io/), not in sticky RAM. **TLS 1.3** ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)) terminates at an edge, a balancer, or the app, with certs from [Let's Encrypt](https://letsencrypt.org/), [ACM](https://aws.amazon.com/certificate-manager/), or [cert-manager](https://cert-manager.io/); mTLS is workload identity ([SPIFFE](https://spiffe.io/)), not a public CA. **Forward proxies** ([Squid](https://www.squid-cache.org/)) are egress; **reverse proxies** ([NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/)) are ingress. **Load balancing** is L4 vs L7 ([AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) vs [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/)), an algorithm, health checks, draining, and stickiness as a crutch. **Clustering** is membership and state; it is not a synonym for balancing. **Checksums** catch accidents; TLS AEAD catches tampering. Draw the hops in [Excalidraw](https://excalidraw.com/). Next is **API Design**.

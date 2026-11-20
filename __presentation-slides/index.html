@@ -956,6 +956,513 @@
 * RPO, RTO, [AWS Backup](https://aws.amazon.com/backup/); multi-region is a WAN-and-data decision <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Napkin: QPS, storage, bandwidth, boxes on [Excalidraw](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Next: Networking, Protocols, and Web Concepts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Networking, Protocols, and Web Concepts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Networking, Protocols, and Web Concepts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The request path on the wire <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* DNS → TCP or QUIC → TLS → HTTP → proxy or load balancer → app <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Tools-heavy; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw hops in [Excalidraw](https://excalidraw.com/); name products when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter: API Design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### IP Addressing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### IP Addressing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The identifier routing uses to deliver a packet <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Public vs private vs NAT is the first network decision <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Plan lives in [Amazon VPC](https://aws.amazon.com/vpc/), [Google Cloud VPC](https://cloud.google.com/vpc), or [Azure Virtual Network](https://azure.microsoft.com/products/virtual-network) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Every box gets an address class and a failure domain <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### IPv4 and IPv6 <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### IPv4 and IPv6 <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* IPv4: 32-bit, [RFC 791](https://www.rfc-editor.org/rfc/rfc791), pool exhausted as a public space <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [IANA IPv4 address space](https://www.iana.org/assignments/ipv4-address-space/ipv4-address-space.xhtml) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* IPv6: 128-bit, [RFC 8200](https://www.rfc-editor.org/rfc/rfc8200), [RFC 4291](https://www.rfc-editor.org/rfc/rfc4291) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Dual-stack is the common production shape <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### IPv4 and IPv6 <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* CIDR ([RFC 4632](https://www.rfc-editor.org/rfc/rfc4632)): `10.0.0.0/16` is a network, `/32` is one host <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* VPC = CIDR + subnets + route tables + firewall rules <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon VPC](https://aws.amazon.com/vpc/), [Google Cloud VPC](https://cloud.google.com/vpc), [Azure Virtual Network](https://azure.microsoft.com/products/virtual-network) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* DNS `A` vs `AAAA` must match the front door <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* IPv4 is still the default client path <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Public vs Private Addresses <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Public vs Private Addresses <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Public: globally routable; [Elastic IP](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/elastic-ip-addresses-eip.html) on [AWS](https://aws.amazon.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Private IPv4: [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) — `10/8`, `172.16/12`, `192.168/16` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Special-purpose registry: [RFC 6890](https://www.rfc-editor.org/rfc/rfc6890) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Loopback and link-local never leave the host or the link <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Public vs Private Addresses <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* NAT hides private origins: [NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html), [Google Cloud NAT](https://cloud.google.com/nat), [Azure NAT Gateway](https://azure.microsoft.com/products/azure-nat-gateway) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Internet gateway](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html) is not NAT <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [DHCP](https://www.rfc-editor.org/rfc/rfc2131) leases vs a static public front door <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [PostgreSQL](https://www.postgresql.org/) with a public IP is a sketch you redraw <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### The OSI Model <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### The OSI Model <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Seven layers: [ITU-T X.200](https://www.itu.int/rec/T-REC-X.200), [ISO/IEC 7498-1](https://www.iso.org/standard/20269.html) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Production runs TCP/IP, not a literal seven-stack <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* You still say Layer 4 and Layer 7 because SKUs do <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Working layers on a sketch: L3, L4, L7 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### The OSI Model <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* L7: HTTP, DNS, gRPC — [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L4: TCP/UDP port — [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L3: IP, routing, VPC CIDR <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Reciting all seven without picking L4 vs L7 is trivia <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### The OSI Model <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Wireshark](https://www.wireshark.org/) and [tcpdump](https://www.tcpdump.org/): see the layer you thought you were on <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A pcap is a microscope; [Prometheus](https://prometheus.io/) tells you which request to put under it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Say L3, L4, or L7 for every front-door box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### TCP and UDP <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### TCP and UDP <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* TCP ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293)): handshake, ordered stream, retransmission, congestion control <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* UDP ([RFC 768](https://www.rfc-editor.org/rfc/rfc768)): datagrams, no handshake, no retransmission <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Neither is better; they optimize different failure modes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HTTP/1.1 and HTTP/2 ride TCP; DNS and media often ride UDP <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### TCP and UDP <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* TCP costs: handshake, slow start, head-of-line blocking <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Application retries on top of TCP retries can stampede <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* UDP: you own loss; NAT is less friendly <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [QUIC](https://www.rfc-editor.org/rfc/rfc9000) + [HTTP/3](https://www.rfc-editor.org/rfc/rfc9114): UDP with per-stream recovery <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### TCP and UDP <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Cloudflare](https://www.cloudflare.com/) and [Amazon CloudFront](https://aws.amazon.com/cloudfront/) can terminate HTTP/3 at the edge <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Origins may stay on HTTP/1.1 or HTTP/2 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* TCP if a missing byte is a bug <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* UDP if a late byte is worse than a missing one <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [WebRTC](https://webrtc.org/) waits for a later chapter <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Domain Name System <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Domain Name System <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Name → record set: [RFC 1034](https://www.rfc-editor.org/rfc/rfc1034), [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* First hop of almost every user request <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Authoritative vs recursive are different jobs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A 60-second TTL is part of your RTO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Domain Name System <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Authoritative: [Amazon Route 53](https://aws.amazon.com/route53/), [Google Cloud DNS](https://cloud.google.com/dns), [Azure DNS](https://azure.microsoft.com/products/dns), [Cloudflare DNS](https://www.cloudflare.com/application-services/products/dns/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* In-cluster: [CoreDNS](https://coredns.io/) on [Kubernetes](https://kubernetes.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Public recursors: [Google Public DNS](https://developers.google.com/speed/public-dns), [1.1.1.1](https://one.one.one.one/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### How DNS Resolution Works <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### How DNS Resolution Works <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Stub → recursive resolver → root → TLD → authoritative <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Root identities: [IANA root servers](https://www.iana.org/domains/root/servers) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Each step caches for that record's TTL <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Client, recursor, and edge can all cache — TTLs add in practice <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### How DNS Resolution Works <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [dig](https://bind9.readthedocs.io/en/latest/manpages.html#dig-dns-lookup-utility) ships with [BIND](https://www.isc.org/bind/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [curl](https://curl.se/) (`-I`, `-v`, `--resolve`) is the HTTP hop after DNS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Anycast: same prefix, many places — [Cloudflare](https://www.cloudflare.com/), [Amazon Route 53](https://aws.amazon.com/route53/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* On a product sketch: draw the authoritative product and the TTL <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Record Types and Caching <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Record Types and Caching <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* `A` / `AAAA`: name → IPv4 / IPv6 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `CNAME`: alias; not at the zone apex in classic DNS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `NS`, `MX`, `TXT`, `SRV`, `CAA`, `PTR` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Vendor alias/ANAME flattens apex to a load balancer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Let's Encrypt](https://letsencrypt.org/) ACME often uses `TXT` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Record Types and Caching <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Amazon Route 53](https://aws.amazon.com/route53/): health-checked failover, latency, weighted, alias to [ELB](https://aws.amazon.com/elasticloadbalancing/) / [CloudFront](https://aws.amazon.com/cloudfront/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Lower TTL *before* a move; wait out the old cache <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Negative TTL from SOA can cache `NXDOMAIN` too long <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `dig` against `8.8.8.8` is not what Chrome has in memory <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### HTTP, HTTPS, and the Web Request Path <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### HTTP, HTTPS, and the Web Request Path <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Semantics: [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110); readable map: [MDN HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HTTP/1.1: [RFC 9112](https://www.rfc-editor.org/rfc/rfc9112) — one request per connection in practice <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HTTP/2: [RFC 9113](https://www.rfc-editor.org/rfc/rfc9113) — multiplexed streams, still TCP HOL blocking <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HTTP/3: [RFC 9114](https://www.rfc-editor.org/rfc/rfc9114) over [QUIC](https://www.rfc-editor.org/rfc/rfc9000) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### HTTP, HTTPS, and the Web Request Path <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* DNS → TCP/QUIC → TLS → HTTP → reverse proxy / LB → app <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Edge hop: [Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name the protocol version only when it changes a hop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Always name the six steps <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Methods, Status Codes, and Headers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Methods, Status Codes, and Headers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Methods: [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods) — GET safe; POST is not idempotent <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* 2xx success, 3xx look elsewhere (`301` vs `302`), 4xx client, 5xx this hop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [MDN status codes](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A balancer turning app `500` into `502` is a hop your SLO must know <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Methods, Status Codes, and Headers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* `Host` / `:authority`: virtual hosting on [NGINX](https://nginx.org/) or [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `Cache-Control`, [ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `X-Forwarded-For` / `Forwarded` ([RFC 7239](https://www.rfc-editor.org/rfc/rfc7239)): trust the hop that set it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `X-Forwarded-Proto`: original HTTPS after TLS termination <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Inspect with [curl](https://curl.se/); it is not a load test <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Cookies, Sessions, and CORS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Cookies, Sessions, and CORS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Cookies: [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Cookies), [RFC 6265](https://www.rfc-editor.org/rfc/rfc6265) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Flags: `HttpOnly`, `Secure`, `SameSite`, `Domain` / `Path` / `Max-Age` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Session state must survive replica death: [Redis](https://redis.io/), [Amazon ElastiCache](https://aws.amazon.com/elasticache/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Sticky sessions are a patch, not a store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Cookies, Sessions, and CORS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* CORS is a *browser* opt-in: [MDN CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS), [Fetch](https://fetch.spec.whatwg.org/#http-cors-protocol) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Preflight `OPTIONS` can be answered by [NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/), [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [curl](https://curl.se/) and mobile apps do not care about CORS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not "fix" server-to-server 403 with CORS headers <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### TLS, SSL, and mTLS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### TLS, SSL, and mTLS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* SSL is the old name; use TLS 1.3 ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Authentication of the server, confidentiality, integrity <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not authorization; not a web application firewall ([AWS WAF](https://aws.amazon.com/waf/)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* After termination, the next hop is only as trusted as the VPC <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### TLS, SSL, and mTLS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* SNI picks the certificate; chain must match the hostname <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Terminate at the edge: [Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/), [Azure Front Door](https://azure.microsoft.com/products/frontdoor) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Or at the balancer: [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Application Gateway](https://azure.microsoft.com/products/application-gateway) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Software: [NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/), [Caddy](https://caddyserver.com/), [Traefik](https://traefik.io/traefik/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Passthrough L4: [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### TLS, SSL, and mTLS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Let's Encrypt](https://letsencrypt.org/) + [cert-manager](https://cert-manager.io/) / [Caddy](https://caddyserver.com/) for public names <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/) attaches to [ELB](https://aws.amazon.com/elasticloadbalancing/) and [CloudFront](https://aws.amazon.com/cloudfront/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Grade with [SSL Labs](https://www.ssllabs.com/ssltest/); generate with [Mozilla SSL Config](https://ssl-config.mozilla.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* mTLS = client certs; [SPIFFE](https://spiffe.io/) / [Istio](https://istio.io/) / [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [OpenSSL](https://www.openssl.org/) prints a chain; it is not a CA <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* mTLS is not issued by [Let's Encrypt](https://letsencrypt.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Proxies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Proxies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* A hop that forwards, and maybe changes TLS, headers, auth, or destination <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "We put a proxy in front" is not a design until you say forward or reverse <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* And whether it is also the load balancer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Forward Proxy vs Reverse Proxy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Forward Proxy vs Reverse Proxy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Forward: the *client* chooses it; origin sees the proxy IP <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Egress, allowlists: [Squid](https://www.squid-cache.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Avoiding the public internet: [AWS PrivateLink](https://aws.amazon.com/privatelink/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Reverse: *you* put it in front of origins; the client thinks it is the origin <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Forward Proxy vs Reverse Proxy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Reverse products: [NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/), [HAProxy](https://www.haproxy.org/), [Caddy](https://caddyserver.com/), [Traefik](https://traefik.io/traefik/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [NGINX](https://nginx.org/): TLS, path routing, buffering on VMs — one box is still a SPOF <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Envoy](https://www.envoyproxy.io/): programmable L4/L7, HTTP/2, gRPC, mTLS, mesh data plane <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Squid](https://www.squid-cache.org/) is the wrong direction for inbound <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Load Balancer vs Reverse Proxy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Load Balancer vs Reverse Proxy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Reverse proxy: what you do to the request (TLS, headers, buffering, `/static`) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Load balancer: which origin (health, spread, failover) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Many products are both: [NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), [Envoy](https://www.envoyproxy.io/), [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Load Balancer vs Reverse Proxy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* L4-only: [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One origin, no health check → reverse proxy, not a balancer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name the product and the layer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Spread traffic across healthy replicas <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cloud: [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer), [Azure Application Gateway](https://azure.microsoft.com/products/application-gateway), [Azure Front Door](https://azure.microsoft.com/products/frontdoor) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Software: [NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* DNS as a balancer does not connection-drain <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Layer 4 vs Layer 7 Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Layer 4 vs Layer 7 Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* L4: IP + port + TCP/UDP; cannot read a URL <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L7: HTTP host, path, header, cookie; usually terminates TLS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L4 SKU: [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L7 SKU: [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), [Azure Application Gateway](https://azure.microsoft.com/products/application-gateway) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Layer 4 vs Layer 7 Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* ALB: HTTP/HTTPS/gRPC, host/path rules, TLS via [ACM](https://aws.amazon.com/certificate-manager/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* NLB: TCP/UDP/TLS, source-IP preservation, passthrough <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* NLB will not route `/payments`; ALB will not front [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HTTP user traffic → L7; non-HTTP or TLS you must not terminate → L4 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Routing Algorithms <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Routing Algorithms <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Round robin; weighted round robin <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Least connections; least response time (needs an honest metric) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Random / power of two choices <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* IP hash / cookie hash = stickiness, not a session store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Routing Algorithms <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Consistent hashing: later algorithms chapter; [Envoy](https://www.envoyproxy.io/) uses it for some clusters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Maglev: [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) L4 shape — [networking-in-depth post](https://cloud.google.com/blog/products/networking/google-cloud-networking-in-depth-how-and-why-we-chose-maglev-as-our-load-balancer) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [HAProxy](https://www.haproxy.org/) / [NGINX](https://nginx.org/) expose these as `balance` / `upstream` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Stateless equal replicas → round robin or least connections <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Need stickiness → [Redis](https://redis.io/) first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Health Checks, Sticky Sessions, and Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Health Checks, Sticky Sessions, and Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Active probes: [ELB](https://aws.amazon.com/elasticloadbalancing/) target health, [HAProxy](https://www.haproxy.org/) `httpchk` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Passive / outlier: [Envoy](https://www.envoyproxy.io/) ejects a 5xx-ing target <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kubernetes probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/): readiness gates traffic; liveness restarts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not point liveness at [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cheap `/healthz`; deep dependency checks less often <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Health Checks, Sticky Sessions, and Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Sticky sessions pin a client; replica death still drops in-RAM sessions <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Store sessions in [Redis](https://redis.io/) / [Amazon ElastiCache](https://aws.amazon.com/elasticache/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Drain: [ELB](https://aws.amazon.com/elasticloadbalancing/) deregistration delay, [Kubernetes](https://kubernetes.io/) `preStop` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* DNS failover: [Amazon Route 53](https://aws.amazon.com/route53/), [Azure Traffic Manager](https://azure.microsoft.com/products/traffic-manager), [Cloudflare](https://www.cloudflare.com/) — TTL is the RTO floor <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Clustering vs Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Clustering vs Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Load balancing: interchangeable stateless replicas; state lives elsewhere <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Clustering: membership, replication, quorum, shards <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [PostgreSQL](https://www.postgresql.org/) primary/standbys, [Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/), [Apache Kafka](https://kafka.apache.org/) brokers, [Kubernetes](https://kubernetes.io/) control plane <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* You cannot round-robin writes at a single-writer primary and call it a cluster <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Clustering vs Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Stateless APIs: balancer only — [Kubernetes Service](https://kubernetes.io/docs/concepts/services-networking/service/), [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/), [Gateway API](https://gateway-api.sigs.k8s.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Datastores: cluster first, then maybe [HAProxy](https://www.haproxy.org/) TCP to the primary <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A fleet of caches behind a balancer is not [Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If nodes vote or own a key range, you clustered <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Checksums and Integrity on the Wire <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Checksums and Integrity on the Wire <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Fingerprint of bytes: "did this get flipped?" <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not encryption; a CRC is not authentication <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Integrity plus sender auth = MAC or AEAD — TLS ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Ethernet CRC and IPv4 header checksum are not your app story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Checksums and Integrity on the Wire <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* TCP checksum ([RFC 1071](https://www.rfc-editor.org/rfc/rfc1071)) is cheap and weak <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* After TLS termination, the next hop is uncovered unless you TLS again <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Object integrity: [SHA-256](https://csrc.nist.gov/pubs/fips/180-4/upd1/final), [Amazon S3 extra checksums](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* HTTP [ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag) is a cache validator, not always a hash <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Checksums detect accidents; TLS (or a MAC) detects tampering <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Networking, Protocols, and Web Concepts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Networking, Protocols, and Web Concepts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Address, transport, name, HTTP, TLS, then a proxy or balancer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* IP: [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) private vs public; CIDR in [Amazon VPC](https://aws.amazon.com/vpc/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* OSI: design at L3, L4, L7 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* TCP ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293)); UDP; HTTP/3 is [QUIC](https://www.rfc-editor.org/rfc/rfc9000) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* DNS: [Amazon Route 53](https://aws.amazon.com/route53/), [Cloudflare DNS](https://www.cloudflare.com/application-services/products/dns/), [CoreDNS](https://coredns.io/); TTL is failover math <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Networking, Protocols, and Web Concepts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* HTTP: [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110), [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP); sessions in [Redis](https://redis.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* TLS 1.3; [Let's Encrypt](https://letsencrypt.org/), [ACM](https://aws.amazon.com/certificate-manager/), [cert-manager](https://cert-manager.io/); mTLS via [SPIFFE](https://spiffe.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Forward [Squid](https://www.squid-cache.org/); reverse [NGINX](https://nginx.org/) / [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L4 [NLB](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) vs L7 [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Clustering ≠ load balancing; checksums ≠ TLS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw it in [Excalidraw](https://excalidraw.com/). Next: API Design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
         </textarea>
       </section>
     </div>
