@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Awesome System Design Book & Course: System Design</title>
+  <link rel="stylesheet" href="dist/reset.css">
+  <link rel="stylesheet" href="dist/reveal.css">
+  <link rel="stylesheet" href="dist/theme/serif.css">
+  <link rel="stylesheet" href="plugin/highlight/monokai.css">
+  <style>
+    .fragment.blur { filter: blur(1rem); }
+    .fragment.blur.visible { filter: none; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-markdown>
+        <textarea data-template>
+# Welcome <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Introduction to System Design Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What is a System Design Interview? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What is a System Design Interview? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Timed, open-ended conversation <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Prompt is too big to finish <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* About 45 to 60 minutes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* You drive the loop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Procedure is The Interview Working Loop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is a System Design Interview? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Clarify requirements <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Back-of-the-envelope estimate <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Sketch API and data model <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* High-level design, then one or two deep dives <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Wrap up with trade-offs and failure modes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is a System Design Interview? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Not a coding interview <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Tiny interface or schema is fine <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a trivia quiz of [AWS](https://aws.amazon.com/) product names <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Naming [Amazon S3](https://aws.amazon.com/s3/) without a why is weaker than "blob store" plus a trade-off <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is a System Design Interview? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Onsite: physical whiteboard, you draw <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Remote: [Excalidraw](https://excalidraw.com/), [diagrams.net](https://www.diagrams.net/), [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Also: [Google Drawings](https://docs.google.com/drawings), [CoderPad](https://coderpad.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Rubric does not change with the tool <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Muscle memory does <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is a System Design Interview? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Meta software engineering interview prep](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Google Careers interview tips](https://www.google.com/about/careers/applications/interview-tips) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon interview loop](https://www.amazon.jobs/content/en/how-we-hire/interview-loop) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Microsoft Careers](https://careers.microsoft.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Read the company's words, not a leaked scorecard <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is a System Design Interview? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Turn an underspecified prompt into a scoped problem <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Choose components on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Explain a trade-off in a sentence <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Use the diagram as a shared artifact <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Show how you would start shipping, and what you postpone <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Choose components, contracts, and operational qualities <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A system is not one process <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Clients, DNS, load balancing, services, datastores, caches, async paths, telemetry <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Qualities: scale, availability, reliability, performance, disaster recovery <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [AWS](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), [Microsoft Azure](https://azure.microsoft.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kubernetes](https://kubernetes.io/) is later, not a default first box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [PostgreSQL](https://www.postgresql.org/) as the default relational store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Redis](https://redis.io/) as the default cache and fast key-value <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Blobs: [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Logs/streams: [Apache Kafka](https://kafka.apache.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Edge: [Cloudflare](https://www.cloudflare.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Proxies: [NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Observability: [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/), [Datadog](https://www.datadoghq.com/), [OpenTelemetry](https://opentelemetry.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "Put [Redis](https://redis.io/) and [Apache Kafka](https://kafka.apache.org/) everywhere" is not a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A TTL plus a reason is a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a logo collage and not a staff pass by naming [Kubernetes](https://kubernetes.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Product Interviews vs Infrastructure Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Product Interviews vs Infrastructure Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Two prompts, one working loop, different deep dives <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Mixing them up wastes the hour on the wrong bottleneck <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Product Interviews vs Infrastructure Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Product-backend: timeline, photos, matching, chat, checkout <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Later chapters: Design Twitter, Design Instagram, Design Uber, Design WhatsApp <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Start with actors, APIs, and the read/write ratio <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Still choose [Redis](https://redis.io/) versus [PostgreSQL](https://www.postgresql.org/) on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Meta](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/): systems or product, depending on background <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Product Interviews vs Infrastructure Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Infrastructure: KV store, cache, queue, metrics, rate limiter <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Start with the interface and the SLO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Then partitioning, replication, failover <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "Just use [Amazon S3](https://aws.amazon.com/s3/)" fails this loop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* This loop wants you to design the store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Product Interviews vs Infrastructure Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Product: users → API → data → path → one bottleneck <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Infrastructure: API and guarantees → replica story → client <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Product loops still mention failure <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Infrastructure loops still mention who calls the API <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Product Interviews vs Infrastructure Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Consumer product prompt: start with users and APIs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Primitive prompt: start with API and guarantees <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "Product design" may mean UX — confirm <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* This book is systems and product-backend, not a PM exercise <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Junior vs Senior vs Staff Expectations <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Junior vs Senior vs Staff Expectations <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Ladders differ: [Google](https://www.google.com/about/careers/applications/interview-tips), [Meta](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/), [Amazon](https://www.amazon.jobs/content/en/how-we-hire/interview-loop), [Microsoft](https://careers.microsoft.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* The slope of the room is still predictable <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Match the room <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not perform staff in a junior loop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Junior vs Senior vs Staff Expectations <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Junior: follow the loop with some prompting <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Asking "should I estimate?" is fine; sitting silent is not <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* First sketch: clients, load balancer, app servers, datastore, maybe a cache <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [NGINX](https://nginx.org/) or a cloud load balancer as the front door <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [PostgreSQL](https://www.postgresql.org/) default; [Redis](https://redis.io/) if reads dominate <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Junior vs Senior vs Staff Expectations <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Senior: drive the loop without being pulled <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Numbers that change the design: QPS, storage, fan-out, payload size <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Trade-offs unprompted <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Why [Redis](https://redis.io/) not [PostgreSQL](https://www.postgresql.org/); why a queue before [Apache Kafka](https://kafka.apache.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One or two deep dives, not a tour of every [AWS](https://aws.amazon.com/) box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Junior vs Senior vs Staff Expectations <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Staff: multi-year evolution, cost, ownership <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Multi-region and what you will not build yet <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hard part in the first five minutes, not the load balancer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Still draw a simple high-level design first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Junior vs Senior vs Staff Expectations <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Kubernetes](https://kubernetes.io/), [Envoy](https://www.envoyproxy.io/), [OpenTelemetry](https://opentelemetry.io/) without a request path is not a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Staff who cannot estimate blob storage has skipped the job <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Same loop at every level <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Change the depth, not the order <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Interviewers Actually Score <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What Interviewers Actually Score <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Official pages describe process, not a public numeric rubric <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Google Careers interview tips](https://www.google.com/about/careers/applications/interview-tips) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Meta software engineering interview prep](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon interview loop](https://www.amazon.jobs/content/en/how-we-hire/interview-loop) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Microsoft Careers](https://careers.microsoft.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Interviewers Actually Score <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Problem navigation: users, scale, v1 features, NFRs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Structure: high-level before a deep dive <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Technical depth: explain a [Redis](https://redis.io/) box you drew <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Trade-offs: two options, a criterion, a pick <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Interviewers Actually Score <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Communication: narrate, check in, keep the canvas readable <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Excalidraw](https://excalidraw.com/) versus a marker does not change this <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Operational sense: failure, abuse, how you would know <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Junior: "what if this replica dies?" <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Senior: the metric and the owner <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Interviewers Actually Score <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Pretty diagrams are not the bar <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/), [Google Cloud icons](https://cloud.google.com/icons), [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/) are for documents <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Reciting every [AWS](https://aws.amazon.com/) / [Google Cloud](https://cloud.google.com/) / [Azure](https://azure.microsoft.com/) product is not scored <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Nobody ships [Kubernetes](https://kubernetes.io/) plus a mesh in one hour <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No secret "correct" architecture <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Interviewers Actually Score <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Canvas is a medium <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Excalidraw](https://excalidraw.com/), [diagrams.net](https://www.diagrams.net/), [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), [CoderPad](https://coderpad.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Interchangeable for scoring <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Freezing because the tool is new *is* scored — as communication <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Practice in the tool you will be handed <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How to Use This Book <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### How to Use This Book <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Tools-heavy; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Practice by drawing, estimating, and naming products on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Table of Contents is the contract <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Foundations first, then interview problems <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How to Use This Book <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Read, then draw <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* After a foundations chapter: redraw the core picture from memory <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* After a problem chapter: run The Interview Working Loop with a timer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not collect twenty cloud accounts today <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How to Use This Book <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Excalidraw](https://excalidraw.com/): fast, interview-like canvas <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Open: [excalidraw.com](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Docs: [Excalidraw documentation](https://docs.excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Source: [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a cloud stencil kit <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How to Use This Book <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [diagrams.net](https://www.diagrams.net/) (also [draw.io](https://www.drawio.com/)): structured diagrams <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Open: [app.diagrams.net](https://app.diagrams.net/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cloud libraries: [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/), [Google Cloud icons](https://cloud.google.com/icons), [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* For notes and take-homes, not the fastest 45-minute canvas <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How to Use This Book <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Miro](https://miro.com/) and [FigJam](https://www.figma.com/figjam/) ([Figma](https://www.figma.com/)): company whiteboards <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Use them when the recruiter named the tool <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not the study default <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [CoderPad](https://coderpad.io/) and [Google Drawings](https://docs.google.com/drawings): click the day before if the invite says so <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How to Use This Book <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Read the chapter <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Redraw in [Excalidraw](https://excalidraw.com/) (or [diagrams.net](https://www.diagrams.net/) for notes) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name [Redis](https://redis.io/), [PostgreSQL](https://www.postgresql.org/), [Apache Kafka](https://kafka.apache.org/), [Cloudflare](https://www.cloudflare.com/) only when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Telemetry: [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/), or [Datadog](https://www.datadoghq.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next: The Interview Working Loop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Introduction to System Design Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Introduction to System Design Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Timed design conversation, not a coding test or logo quiz <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Building blocks: [AWS](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), [Azure](https://azure.microsoft.com/), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Apache Kafka](https://kafka.apache.org/), [Cloudflare](https://www.cloudflare.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Product interviews start from users and APIs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Infrastructure interviews start from guarantees and replication <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Introduction to System Design Interviews <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Junior, senior, and staff share a loop and change depth <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Score navigation, structure, depth, trade-offs, communication, operations <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Practice on [Excalidraw](https://excalidraw.com/); notes in [diagrams.net](https://www.diagrams.net/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), [CoderPad](https://coderpad.io/) if handed them <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next: The Interview Working Loop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+        </textarea>
+      </section>
+    </div>
+  </div>
+  <script src="dist/reveal.js"></script>
+  <script src="plugin/notes/notes.js"></script>
+  <script src="plugin/markdown/markdown.js"></script>
+  <script src="plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+    });
+  </script>
+</body>
+</html>

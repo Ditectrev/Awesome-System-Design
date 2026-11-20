@@ -528,3 +528,170 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
     - [Datastores, Caches, and Queues](#datastores-caches-and-queues)
   - [Further Reading and Industry Publications](#further-reading-and-industry-publications)
   - [Summary: Additional Resources and Reading Materials](#summary-additional-resources-and-reading-materials)
+
+## Introduction to System Design Interviews
+
+A System Design Interview is the hour where you design a large-scale system out loud, on a shared canvas, while someone scores how you think. This chapter defines that loop, separates the interview from the job of system design, splits product interviews from infrastructure interviews, and sets junior / senior / staff expectations so you do not perform the wrong room. We then show what interviewers actually score, and how this book is organized: foundations first, then interview problems, practiced in diagramming tools rather than [CodeSandboxes](https://codesandbox.io/). The next chapter, The Interview Working Loop, is the 45-minute procedure you will reuse for every prompt.
+
+### What is a System Design Interview?
+
+A **System Design Interview** is a timed, open-ended conversation. The interviewer gives you a prompt that is too big to finish: Design a URL Shortener, Design a News Feed, Design a Rate Limiter, Design a Key-Value Store. You have about 45 to 60 minutes. You are expected to drive: clarify functional and non-functional requirements, do a back-of-the-envelope estimate, sketch an API and data model, draw a high-level design, pick one or two deep dives, and wrap up with trade-offs and failure modes. That sequence is The Interview Working Loop. This chapter only tells you what the room is.
+
+It is not a coding interview. You may write a tiny interface or a schema. You will not implement a service. It is not a trivia quiz about every [Amazon Web Services (AWS)](https://aws.amazon.com/) product name. Naming [Amazon S3](https://aws.amazon.com/s3/) without saying why object storage belongs in the path is weaker than naming "blob store" and explaining the trade-off.
+
+**What the room looks like:**
+
+- **Onsite.** A physical whiteboard, a marker, and an interviewer who will not draw for you. Practice with a real board if that is the loop you were given.
+- **Remote.** A shared canvas. Companies drop you into [Excalidraw](https://excalidraw.com/), [diagrams.net](https://www.diagrams.net/), [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), [Google Drawings](https://docs.google.com/drawings), or a panel inside [CoderPad](https://coderpad.io/). The rubric does not change with the tool. The muscle memory does. How to Use This Book is where we pick a default canvas.
+- **Time.** Forty-five minutes is the common length. [Meta's software engineering interview prep](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/) describes a design interview in the full loop, systems or product depending on your background. [Google Careers interview tips](https://www.google.com/about/careers/applications/interview-tips) cover how Google runs engineering interviews. [Amazon's interview loop](https://www.amazon.jobs/content/en/how-we-hire/interview-loop) is a sequence of individual interviews; system design sits in that loop for many software roles. [Microsoft Careers](https://careers.microsoft.com/) is the same idea at a different company. We link official prep so you read the company's words, not a leaked scorecard.
+
+**What you are being asked to demonstrate:**
+
+- You can turn an underspecified prompt into a scoped problem.
+- You can choose components on purpose: a cache, a queue, a datastore, a load balancer.
+- You can explain a trade-off in a sentence.
+- You can use the diagram as a shared artifact, not as decoration.
+
+You are not being asked to ship the system. You are being asked to show you would know *how* to start shipping it, and what you would postpone.
+
+### What is System Design?
+
+**System design** is the work of choosing components, contracts, and operational qualities so a product can meet its requirements as load, data, and failure grow. A system is not one process. It is clients, DNS, load balancing, application services, datastores, caches, asynchronous pipelines, and the telemetry that tells you the path is sick.
+
+The qualities we will spend whole chapters on are the non-functional requirements interviewers listen for: scalability, availability, reliability, performance, and disaster recovery. Networking, APIs, databases, caches, queues, and patterns are the levers. Distributed systems are why those levers have surprising failure modes. Algorithms such as consistent hashing show up because they are how you place data on those levers.
+
+**Building blocks you will name on the canvas** (we teach them later; we link them now so "the cloud" is not a fog):
+
+- **Cloud and compute.** [Amazon Web Services (AWS)](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), and [Microsoft Azure](https://azure.microsoft.com/) are the three hosted platforms most interviewers will accept as a sketch. [Kubernetes](https://kubernetes.io/) is how many teams run containers; it is a later chapter, not a default first box.
+- **Datastores.** [PostgreSQL](https://www.postgresql.org/) is the default relational answer. [Redis](https://redis.io/) is the default cache and fast key-value answer. Object storage such as [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), or [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs) is where blobs and media go.
+- **Async paths.** [Apache Kafka](https://kafka.apache.org/) is the log/stream name interviewers expect. Message queues belong in Message Queues, Streams, and Real-Time Communication.
+- **Edge and load balancing.** [Cloudflare](https://www.cloudflare.com/) is a CDN and edge product you can point at. Reverse proxies such as [NGINX](https://nginx.org/) and [Envoy](https://www.envoyproxy.io/) sit in the request path.
+- **Observability.** [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/), [Datadog](https://www.datadoghq.com/), and [OpenTelemetry](https://opentelemetry.io/) are how you prove the design is operable. Monitoring and Observability is the chapter.
+
+**System design is trade-offs under constraints.** "Put [Redis](https://redis.io/) and [Apache Kafka](https://kafka.apache.org/) everywhere" is not a design. "Reads go through [Redis](https://redis.io/) with a 30-second TTL because the feed is read-heavy and a slightly stale post is acceptable" is a design. The rest of this book trains that sentence.
+
+What system design is not: a logo collage, a production runbook you recite from memory, or a guarantee you would pass a staff loop by naming [Kubernetes](https://kubernetes.io/). We will keep returning to qualities, numbers, and failure.
+
+### Product Interviews vs Infrastructure Interviews
+
+Two prompts share a working loop and do not share a deep dive. Mixing them up is how candidates spend 40 minutes on the wrong bottleneck.
+
+**Product (product-backend) interviews**
+
+The prompt is a user-facing product: a social timeline, a photo share, a ride match, a chat, a ticket checkout. Later chapters use names such as Design Twitter, Design Instagram, Design Uber, and Design WhatsApp. The interviewer cares about the path a user feels: upload, feed, match, message, pay. You start with actors, APIs, and the read/write ratio. Datastores and caches exist to serve that path. [Meta's software engineering interview prep](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/) describes a design interview as systems or product depending on your background; a product-leaning loop still expects you to choose [Redis](https://redis.io/) versus [PostgreSQL](https://www.postgresql.org/) on purpose.
+
+**Infrastructure (platform) interviews**
+
+The prompt is a primitive: Design a Key-Value Store, Design a Distributed Cache, Design a Message Queue, Design a Metrics System, Design a Rate Limiter. The interviewer cares about the guarantees: durability, consistency, partitioning, replication, failover, and the client API. You start with the interface and the SLO, then the replication story. [Amazon S3](https://aws.amazon.com/s3/) as "just use S3" is a product-loop shortcut that fails here; this loop wants you to *design* the store.
+
+**Same loop, different first boxes**
+
+- Product: users → API → data model → high-level path → the one bottleneck (fan-out, media, matching, hot keys).
+- Infrastructure: API and guarantees → partitioning and replication → failure and rebalancing → the client.
+
+A product loop that never mentions failure is incomplete. An infrastructure loop that never mentions who calls the API is incomplete. The Interview Working Loop is shared. Pick the deep dive that matches the prompt, not the deep dive you memorized.
+
+**How to tell in the first minute:** if the prompt names a consumer product, start with users and APIs. If the prompt names a primitive ("design a unique ID generator"), start with the API and the guarantees. If the interviewer says "product design" they may mean UX product sense — that is a different interview. Confirm. This book is the systems and product-backend loop, not a PM exercise.
+
+### Junior vs Senior vs Staff Expectations
+
+Levels are company-specific ([Google Careers interview tips](https://www.google.com/about/careers/applications/interview-tips), [Meta's software engineering interview prep](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/), [Amazon's interview loop](https://www.amazon.jobs/content/en/how-we-hire/interview-loop), and [Microsoft Careers](https://careers.microsoft.com/) do not share one ladder). The slope of the room is still predictable. Match the room. Do not perform a staff design in a junior loop, and do not wait to be dragged through a senior loop.
+
+**Junior (often new-grad / early-career)**
+
+- Follow the working loop with some prompting. Asking "should I estimate?" is fine; sitting silent is not.
+- A correct first sketch is clients, a load balancer, a few application servers, a primary datastore, and maybe a cache. [NGINX](https://nginx.org/) or a cloud load balancer as the front door, [PostgreSQL](https://www.postgresql.org/) as the default store, [Redis](https://redis.io/) if reads dominate.
+- You may miss a number or a failure mode. Recover by saying what you would check next.
+- Communication is the bar: think out loud, write as you talk, check in.
+
+**Senior**
+
+- Drive the loop without being pulled. Scope v1 versus later. Write the numbers that change the design (QPS, storage, fan-out, payload size).
+- Trade-offs unprompted: why [Redis](https://redis.io/) not [PostgreSQL](https://www.postgresql.org/) for this cache; why a queue before you jump to [Apache Kafka](https://kafka.apache.org/); why one region for v1.
+- One or two deep dives that match the actual bottleneck, not a tour of every [Amazon Web Services (AWS)](https://aws.amazon.com/) box you remember.
+- Operational light: what breaks, what you measure, what you postpone.
+
+**Staff**
+
+- Multi-year evolution, cost, and ownership. Multi-region, data residency, and what you will *not* build until the metric moves.
+- The hard part in the first five minutes: celebrity fan-out, hot partitions, exactly-once charging, matching latency — not the load balancer.
+- You still draw a simple high-level design first. Staff is not a license to skip the sketch.
+
+A junior who names [Kubernetes](https://kubernetes.io/), [Envoy](https://www.envoyproxy.io/), and [OpenTelemetry](https://opentelemetry.io/) without a request path has not designed anything. A staff candidate who cannot estimate storage for the blob path has skipped the job. Use the next chapter's loop at every level; change the depth, not the order.
+
+### What Interviewers Actually Score
+
+Official pages describe the process, not a public numeric rubric. Read [Google Careers interview tips](https://www.google.com/about/careers/applications/interview-tips), [Meta's software engineering interview prep](https://www.metacareers.com/blog/preparing-for-your-software-engineering-interview-at-meta/), [Amazon's interview loop](https://www.amazon.jobs/content/en/how-we-hire/interview-loop), and [Microsoft Careers](https://careers.microsoft.com/). Across those rooms, interviewers still watch the same behaviors.
+
+**What they score**
+
+1. **Problem navigation.** You ask about users, scale, and which features are v1. You write non-functional requirements (latency, availability, consistency) instead of assuming them.
+2. **Structure.** High-level design before a deep dive. The Interview Working Loop exists so you do not vanish into schema design for 30 minutes.
+3. **Technical depth.** You can explain a component you drew. A box labeled [Redis](https://redis.io/) that you cannot place (aside vs in-process, eviction, stampede) is a liability.
+4. **Trade-offs.** Two options, a criterion, a pick. SQL versus NoSQL, sync versus async, cache versus denormalize.
+5. **Communication.** You narrate, you check in ("I'll put a queue here — does that match what you want to go deep on?"), you keep the canvas readable. [Excalidraw](https://excalidraw.com/) versus a marker does not change this.
+6. **Operational sense.** Failure, abuse, and how you would know. Even a junior loop wants "what if this replica dies?" A senior loop wants the metric and the owner.
+
+**What they do not score**
+
+- Pretty diagrams. Stencils from the [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/), [Google Cloud icons](https://cloud.google.com/icons), or [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/) are for documents, not for the 45-minute bar.
+- Reciting every product on [Amazon Web Services (AWS)](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), or [Microsoft Azure](https://azure.microsoft.com/).
+- Finishing a production-ready design. Nobody ships [Kubernetes](https://kubernetes.io/) plus a mesh plus a lakehouse in one hour.
+- Guessing a secret "correct" architecture. The prompt is underspecified on purpose.
+
+The canvas is a medium. [Excalidraw](https://excalidraw.com/), [diagrams.net](https://www.diagrams.net/), [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), [CoderPad](https://coderpad.io/), and a physical whiteboard are interchangeable for scoring. If you freeze because the tool is new, that *does* get scored — as communication. Practice in the tool you will actually be handed.
+
+### How to Use This Book
+
+This book is tools-heavy and has no code snippets, so it has no [CodeSandboxes](https://codesandbox.io/). You practice by drawing, estimating, and naming real products on purpose. The Table of Contents is the contract. Foundations come first (qualities, networking, APIs, data, caches, queues, patterns, distributed systems, algorithms, security, observability, payments, AI systems). Interview problems come second and apply those foundations. Common Challenges and Debugging Tips is the recap and the 30-day plan. Additional Resources and Reading Materials is the catalog.
+
+**Read, then draw.** After a foundations chapter, open a canvas and redraw the chapter's core picture from memory (request path, replication, cache placement). After a problem chapter, run The Interview Working Loop against that prompt with a timer. Do not collect twenty cloud accounts today.
+
+**The canvases we will keep naming**
+
+**[Excalidraw](https://excalidraw.com/)**
+
+- **Primary function:** a fast, interview-like infinite canvas. Boxes, arrows, and handwriting without a stencil library getting in the way.
+- **When we send you here:** timed practice and remote loops that should feel like a whiteboard.
+- **How you open it:** [excalidraw.com](https://excalidraw.com/). Developer docs: [Excalidraw documentation](https://docs.excalidraw.com/). Source: [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw).
+- **What it is not:** not an [Amazon Web Services (AWS)](https://aws.amazon.com/) / [Google Cloud](https://cloud.google.com/) / [Microsoft Azure](https://azure.microsoft.com/) shape kit. For those libraries, use [diagrams.net](https://www.diagrams.net/).
+
+**[diagrams.net](https://www.diagrams.net/)** (also called [draw.io](https://www.drawio.com/))
+
+- **Primary function:** structured diagrams with official cloud shape libraries.
+- **When we send you here:** take-home diagrams, study notes, and when you want [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/), [Google Cloud icons](https://cloud.google.com/icons), or [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/) on the page.
+- **How you open it:** [app.diagrams.net](https://app.diagrams.net/). Product: [diagrams.net](https://www.diagrams.net/).
+- **What it is not:** not the fastest 45-minute interview canvas. Prefer [Excalidraw](https://excalidraw.com/) when the clock is running unless the company already opened this tab.
+
+**[Miro](https://miro.com/) and [FigJam](https://www.figma.com/figjam/)**
+
+- **Primary function:** company whiteboards. [Miro](https://miro.com/) and [FigJam](https://www.figma.com/figjam/) (from [Figma](https://www.figma.com/)) are what you may be dropped into on interview day.
+- **When we send you here:** only when your recruiter named the tool. Do not make them your study default.
+- **How you open them:** [miro.com](https://miro.com/), [FigJam](https://www.figma.com/figjam/).
+- **What they are not:** not required for this book. The later section [Excalidraw](https://excalidraw.com/), [diagrams.net](https://www.diagrams.net/), and Whiteboard Habits is the habit chapter; this is the map.
+
+**[CoderPad](https://coderpad.io/) and [Google Drawings](https://docs.google.com/drawings)**
+
+- **Primary function:** collaborative interview surfaces some companies still use. [CoderPad](https://coderpad.io/) is often a coding pad with a drawing mode; [Google Drawings](https://docs.google.com/drawings) shows up when the loop is a shared doc.
+- **When we send you here:** if the calendar invite says so. Click the tool the day before. Do not learn system design inside them.
+
+**Cloud icon sets (study notes, not the interview bar)**
+
+- [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/)
+- [Google Cloud icons](https://cloud.google.com/icons)
+- [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/)
+
+Use them in [diagrams.net](https://www.diagrams.net/) when you write notes. Do not pause an interview to hunt a perfect [Amazon S3](https://aws.amazon.com/s3/) stencil.
+
+**Working loop for the rest of this book**
+
+1. Read the chapter (this README is the lesson).
+2. Redraw the picture in [Excalidraw](https://excalidraw.com/) (or [diagrams.net](https://www.diagrams.net/) for notes).
+3. Name real products only when the choice matters: [Redis](https://redis.io/) versus [PostgreSQL](https://www.postgresql.org/), [Apache Kafka](https://kafka.apache.org/) versus a simpler queue, [Cloudflare](https://www.cloudflare.com/) as an edge, [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/) or [Datadog](https://www.datadoghq.com/) as telemetry.
+4. When a chapter is a design prompt, run The Interview Working Loop with a timer.
+
+The next chapter is **The Interview Working Loop**. That is the procedure. This chapter was the room.
+
+### Summary: Introduction to System Design Interviews
+
+A System Design Interview is a timed, open-ended design conversation — not a coding test and not a cloud-logo quiz. System design is choosing components and trade-offs so qualities such as scale, availability, and latency can hold as load grows; the building blocks you will keep naming are products such as [Amazon Web Services (AWS)](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), [Microsoft Azure](https://azure.microsoft.com/), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Apache Kafka](https://kafka.apache.org/), and [Cloudflare](https://www.cloudflare.com/). Product interviews start from users and APIs; infrastructure interviews start from guarantees and replication. Junior, senior, and staff rooms share a loop and change depth. Interviewers score navigation, structure, depth, trade-offs, communication, and operational sense — not pretty stencils. Practice on [Excalidraw](https://excalidraw.com/), keep [diagrams.net](https://www.diagrams.net/) for notes, and treat [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), and [CoderPad](https://coderpad.io/) as tools you may be handed. Next is **The Interview Working Loop**.
