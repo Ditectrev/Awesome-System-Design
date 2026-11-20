@@ -30,15 +30,11 @@ There are many ways to support us; in exchange, you'll get this material in a pr
 1. Always happy to answer your questions 😊
 2. Unhappy? Please raise a refund; we'll always accept it 💸
 3. Learn about topics, such as 😱
-   - Introduction to System Design Interviews:
-     - What is a System Design Interview?;
-     - Product Interviews vs Infrastructure Interviews;
-     - Junior vs Senior vs Staff Expectations;
-   - The Interview Working Loop:
-     - Clarify Functional and Non-Functional Requirements;
-     - Back-of-the-Envelope Estimates;
-     - High-Level Design First;
-     - Diagramming Under Time Pressure;
+   - Introduction to System Design:
+     - What is System Design?;
+     - What Problem System Design Solves;
+     - System Design vs Software Design vs Architecture;
+     - Building Blocks You Will Name;
    - Large-Scale Systems: Scalability, Availability, Reliability, and Performance:
      - Scalability;
      - Availability;
@@ -91,6 +87,15 @@ There are many ways to support us; in exchange, you'll get this material in a pr
      - Training vs Inference Architectures;
      - Vector Search and RAG;
      - LLM Inference, Batching, and Streaming;
+   - System Design Interviews (Optional):
+     - What is a System Design Interview?;
+     - Product Interviews vs Infrastructure Interviews;
+     - Junior vs Senior vs Staff Expectations;
+   - The Interview Working Loop:
+     - Clarify Functional and Non-Functional Requirements;
+     - Back-of-the-Envelope Estimates;
+     - High-Level Design First;
+     - Diagramming Under Time Pressure;
    - Classic Warm-Up Problems:
      - Design a URL Shortener;
      - Design a Unique ID Generator;
@@ -154,11 +159,11 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
 - 👨‍🎓 Enthusiasts of practical education;
 - 👨‍🎓 Everyone who has heard about System Design and would like to know more;
 - 👨‍🎓 Professionalists daily working with technology who want to have a basic grasp of System Design without burnout;
-- 👨‍🎓 Sceptical Engineers about a book & course solely focused on System Design interviews;
+- 👨‍🎓 Sceptical Engineers about a book & course solely focused on System Design;
 - 👨‍🎓 Self-paced Learners for whom expensive Bootcamps are unaffordable;
 - 👨‍🎓 Students interested in Software Engineering and Distributed Systems;
 - 👨‍🎓 Students willing to start a career as a Backend or Platform Engineer;
-- 👨‍🎓 Specialists willing to know A to Z about System Design interviews;
+- 👨‍🎓 Specialists willing to know A to Z about System Design;
 
 ## Requirements
 
@@ -168,28 +173,23 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
 
 ## Table of Contents
 
-- [Introduction to System Design Interviews](#introduction-to-system-design-interviews)
-  - [What is a System Design Interview?](#what-is-a-system-design-interview)
+- [Introduction to System Design](#introduction-to-system-design)
   - [What is System Design?](#what-is-system-design)
-  - [Product Interviews vs Infrastructure Interviews](#product-interviews-vs-infrastructure-interviews)
-  - [Junior vs Senior vs Staff Expectations](#junior-vs-senior-vs-staff-expectations)
-  - [What Interviewers Actually Score](#what-interviewers-actually-score)
-  - [How to Use This Book](#how-to-use-this-book)
-  - [Summary: Introduction to System Design Interviews](#summary-introduction-to-system-design-interviews)
-- [The Interview Working Loop](#the-interview-working-loop)
-  - [Clarify Functional and Non-Functional Requirements](#clarify-functional-and-non-functional-requirements)
-  - [Back-of-the-Envelope Estimates](#back-of-the-envelope-estimates)
-  - [Sketch the API and Data Model](#sketch-the-api-and-data-model)
-  - [High-Level Design First](#high-level-design-first)
-  - [Pick the Right Deep Dives](#pick-the-right-deep-dives)
-  - [Wrap-Up, Trade-offs, and Failure Modes](#wrap-up-trade-offs-and-failure-modes)
-  - [Diagramming Under Time Pressure](#diagramming-under-time-pressure)
-    - [What to Draw in the First Five Minutes](#what-to-draw-in-the-first-five-minutes)
-    - [Excalidraw, diagrams.net, and Whiteboard Habits](#excalidraw-diagramsnet-and-whiteboard-habits)
-  - [Talking Out Loud Without Rambling](#talking-out-loud-without-rambling)
-  - [Summary: The Interview Working Loop](#summary-the-interview-working-loop)
+  - [What Problem System Design Solves](#what-problem-system-design-solves)
+  - [System Design vs Software Design vs Architecture](#system-design-vs-software-design-vs-architecture)
+  - [Qualities You Design For](#qualities-you-design-for)
+  - [Building Blocks You Will Name](#building-blocks-you-will-name)
+    - [Cloud and Compute](#cloud-and-compute)
+    - [Datastores, Caches, and Object Storage](#datastores-caches-and-object-storage)
+    - [Async Paths, Edge, and Observability](#async-paths-edge-and-observability)
+  - [How We Practice](#how-we-practice)
+    - [Excalidraw as the Default Canvas](#excalidraw-as-the-default-canvas)
+    - [diagrams.net and Cloud Icon Sets](#diagramsnet-and-cloud-icon-sets)
+    - [Miro, FigJam, and Other Whiteboards You May Be Handed](#miro-figjam-and-other-whiteboards-you-may-be-handed)
+  - [How this book is organized](#how-this-book-is-organized)
+  - [Summary: Introduction to System Design](#summary-introduction-to-system-design)
 - [Large-Scale Systems: Scalability, Availability, Reliability, and Performance](#large-scale-systems-scalability-availability-reliability-and-performance)
-  - [What Large-Scale Means in Interviews](#what-large-scale-means-in-interviews)
+  - [What Large-Scale Means](#what-large-scale-means)
   - [Scalability](#scalability)
     - [Vertical Scaling](#vertical-scaling)
     - [Horizontal Scaling](#horizontal-scaling)
@@ -273,10 +273,10 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
   - [Sharding, Partitioning, and Federation](#sharding-partitioning-and-federation)
     - [Shard Keys That Age Well](#shard-keys-that-age-well)
     - [Resharding and Directory-Based Routing](#resharding-and-directory-based-routing)
-  - [When Interviewers Expect SQL vs NoSQL](#when-interviewers-expect-sql-vs-nosql)
+  - [When to Pick SQL vs NoSQL](#when-to-pick-sql-vs-nosql)
   - [Summary: Databases and Storage](#summary-databases-and-storage)
 - [Caching and Content Delivery Networks](#caching-and-content-delivery-networks)
-  - [Why Caching Shows Up in Almost Every Interview](#why-caching-shows-up-in-almost-every-interview)
+  - [Why Caching Shows Up in Almost Every Design](#why-caching-shows-up-in-almost-every-design)
   - [Cache Hits, Misses, and Stampede](#cache-hits-misses-and-stampede)
   - [Where to Cache](#where-to-cache)
     - [Client, CDN, Application, and Database Caches](#client-cdn-application-and-database-caches)
@@ -314,7 +314,7 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
     - [Batch vs Stream Processing](#batch-vs-stream-processing)
     - [Lambda and Kappa](#lambda-and-kappa)
     - [Data Lakes, Warehouses, and Lakehouses](#data-lakes-warehouses-and-lakehouses)
-    - [MapReduce and Its Interview Descendants](#mapreduce-and-its-interview-descendants)
+    - [MapReduce and Its Descendants](#mapreduce-and-its-descendants)
   - [Cloud-Native Architecture](#cloud-native-architecture)
     - [VMs vs Containers](#vms-vs-containers)
     - [Orchestration, Twelve-Factor, and Stateless Services](#orchestration-twelve-factor-and-stateless-services)
@@ -331,7 +331,7 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
   - [Multi-Datacenter Designs](#multi-datacenter-designs)
   - [Summary: Distributed Systems](#summary-distributed-systems)
 - [Algorithms and Data Structures for System Design](#algorithms-and-data-structures-for-system-design)
-  - [Which Algorithms Show Up on the Whiteboard](#which-algorithms-show-up-on-the-whiteboard)
+  - [Which Algorithms Show Up in System Design](#which-algorithms-show-up-in-system-design)
   - [Consistent Hashing](#consistent-hashing)
   - [Bloom Filters](#bloom-filters)
   - [Count-Min Sketch and HyperLogLog](#count-min-sketch-and-hyperloglog)
@@ -343,7 +343,7 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
     - [Token Bucket, Leaky Bucket, and Sliding Window](#token-bucket-leaky-bucket-and-sliding-window)
   - [Summary: Algorithms and Data Structures for System Design](#summary-algorithms-and-data-structures-for-system-design)
 - [Security and Authentication](#security-and-authentication)
-  - [What Interviewers Expect on Security](#what-interviewers-expect-on-security)
+  - [What Security Must Make Obvious](#what-security-must-make-obvious)
   - [Authentication vs Authorization](#authentication-vs-authorization)
   - [OAuth 2.0 and OpenID Connect](#oauth-20-and-openid-connect)
   - [Single Sign-On and SAML](#single-sign-on-and-saml)
@@ -356,7 +356,7 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
   - [Logs, Metrics, and Traces](#logs-metrics-and-traces)
   - [Golden Signals](#golden-signals)
   - [Alerting Without Pager Fatigue](#alerting-without-pager-fatigue)
-  - [Dashboards Interviewers Can Sketch](#dashboards-interviewers-can-sketch)
+  - [Dashboards You Can Sketch](#dashboards-you-can-sketch)
   - [Profiling and Continuous Profiling](#profiling-and-continuous-profiling)
   - [Summary: Monitoring and Observability](#summary-monitoring-and-observability)
 - [Payment Systems](#payment-systems)
@@ -375,6 +375,24 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
   - [LLM Inference, Batching, and Streaming](#llm-inference-batching-and-streaming)
   - [GPU Scheduling, Cost, and Safety](#gpu-scheduling-cost-and-safety)
   - [Summary: AI and ML Systems](#summary-ai-and-ml-systems)
+- [System Design Interviews (Optional)](#system-design-interviews-optional)
+  - [What is a System Design Interview?](#what-is-a-system-design-interview)
+  - [Product Interviews vs Infrastructure Interviews](#product-interviews-vs-infrastructure-interviews)
+  - [Junior vs Senior vs Staff Expectations](#junior-vs-senior-vs-staff-expectations)
+  - [What Interviewers Actually Score](#what-interviewers-actually-score)
+  - [Summary: System Design Interviews (Optional)](#summary-system-design-interviews-optional)
+- [The Interview Working Loop](#the-interview-working-loop)
+  - [Clarify Functional and Non-Functional Requirements](#clarify-functional-and-non-functional-requirements)
+  - [Back-of-the-Envelope Estimates](#back-of-the-envelope-estimates)
+  - [Sketch the API and Data Model](#sketch-the-api-and-data-model)
+  - [High-Level Design First](#high-level-design-first)
+  - [Pick the Right Deep Dives](#pick-the-right-deep-dives)
+  - [Wrap-Up, Trade-offs, and Failure Modes](#wrap-up-trade-offs-and-failure-modes)
+  - [Diagramming Under Time Pressure](#diagramming-under-time-pressure)
+    - [What to Draw in the First Five Minutes](#what-to-draw-in-the-first-five-minutes)
+    - [Excalidraw, diagrams.net, and Whiteboard Habits](#excalidraw-diagramsnet-and-whiteboard-habits)
+  - [Talking Out Loud Without Rambling](#talking-out-loud-without-rambling)
+  - [Summary: The Interview Working Loop](#summary-the-interview-working-loop)
 - [Classic Warm-Up Problems](#classic-warm-up-problems)
   - [Design a URL Shortener](#design-a-url-shortener)
     - [Requirements for a URL Shortener](#requirements-for-a-url-shortener)
@@ -518,7 +536,7 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
   - [Challenge: You Went Silent at the Whiteboard](#challenge-you-went-silent-at-the-whiteboard)
   - [Challenge: Single Points of Failure You Missed](#challenge-single-points-of-failure-you-missed)
   - [Debug Order When a Design Falls Apart](#debug-order-when-a-design-falls-apart)
-  - [A 30-Day System Design Interview Plan](#a-30-day-system-design-interview-plan)
+  - [A 30-Day System Design Practice Plan](#a-30-day-system-design-practice-plan)
   - [What Done Looks Like in a 45-Minute Loop](#what-done-looks-like-in-a-45-minute-loop)
   - [Summary: Common Challenges and Debugging Tips](#summary-common-challenges-and-debugging-tips)
 - [Additional Resources and Reading Materials](#additional-resources-and-reading-materials)
@@ -528,3 +546,198 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
     - [Datastores, Caches, and Queues](#datastores-caches-and-queues)
   - [Further Reading and Industry Publications](#further-reading-and-industry-publications)
   - [Summary: Additional Resources and Reading Materials](#summary-additional-resources-and-reading-materials)
+
+## Introduction to System Design
+
+System design is how you choose components, contracts, and operational qualities so a product still works as load, data, and failure grow. This chapter defines the skill, names the problem it solves, separates it from software design and architecture, and shows the building blocks and canvases we will keep naming. We then show how the rest of this book is organized: foundations first, then an optional interview add-on, then applied designs such as Design Netflix and Design Twitter. The next chapter is Large-Scale Systems: Scalability, Availability, Reliability, and Performance.
+
+### What is System Design?
+
+**System design** is the work of choosing components, contracts, and operational qualities so a product can meet its requirements as load, data, and failure grow. A system is not one process. It is clients, DNS, load balancing, application services, datastores, caches, asynchronous pipelines, and the telemetry that tells you the path is sick.
+
+The job on a product team is not to "use the cloud." The job is to wrap a request path you can test, operate, and change: who calls, what the contract is, where data lives, and what happens when a box dies.
+
+A few words we will keep using:
+
+- **Component:** a box on the path with a job — a load balancer, an application service, a datastore, a cache, a queue, an edge. You will name real products for these boxes later in this chapter.
+- **Contract:** the API, the schema, the delivery guarantee, the timeout. Two services talk through a contract, not through hope.
+- **Operational quality:** a non-functional requirement the path must hold: scale, availability, reliability, latency, durability. Large-Scale Systems: Scalability, Availability, Reliability, and Performance is the next chapter.
+- **Trade-off:** two options, a criterion, a pick. You cannot maximize every quality at once.
+
+**What system design is not:**
+
+- Not software design inside one service. Classes, modules, and in-process APIs matter. They are a different skill. We separate the three layers in System Design vs Software Design vs Architecture.
+- Not a logo collage. Naming [Kubernetes](https://kubernetes.io/) without a request path is not a design. "Reads go through [Redis](https://redis.io/) with a 30-second TTL because the feed is read-heavy and a slightly stale post is acceptable" is a design.
+- Not a coding exercise. You may sketch a tiny interface or a schema. You will not implement a service in this book. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing, estimating, and naming real products on purpose.
+
+System design is trade-offs under constraints. "Put [Redis](https://redis.io/) and [Apache Kafka](https://kafka.apache.org/) everywhere" is not a design. The rest of this book trains the sentence that picks.
+
+### What Problem System Design Solves
+
+Without system design, a product is one process on one machine that only the happy path can describe. That works until traffic, data, or failure shows up. System design replaces that hope with a path you can scale, fail over, and operate.
+
+**The daily problems system design is for:**
+
+1. **Load**
+   - One instance cannot take every request. A second instance needs a load balancer, a shared store, and a story for sessions.
+   - System design is how you add capacity without rewriting the product: vertical first when it is cheaper, horizontal when a bigger box is not enough. Scalability is the next chapter.
+2. **Data**
+   - A single disk fills. A single primary cannot take every write. Blobs do not belong in a row store.
+   - You choose [PostgreSQL](https://www.postgresql.org/) versus a cache versus object storage on purpose. Databases and Storage and Caching and Content Delivery Networks are those chapters.
+3. **Failure**
+   - Disks, processes, racks, and regions die. A dependency hangs. A deploy goes bad.
+   - System design is redundancy, failover, timeouts, and the telemetry that tells you the path is sick — not a wish that hardware will be kind.
+4. **Latency versus correctness**
+   - Users feel tail latency. Finance and inventory feel stale writes.
+   - You cannot always have both. A cache with a TTL, an asynchronous queue, a strongly consistent primary: each pick is a trade-off you can explain in a sentence.
+5. **Change**
+   - New features arrive. Traffic shape changes. Yesterday's bottleneck is not today's.
+   - A contract you can version, a path you can split, and a quality you can measure are how you change the system without starting over.
+
+**What you get once a path exists:**
+
+- **A request you can trace.** Client → edge → load balancer → service → store, plus the async fork. Networking, Protocols, and Web Concepts is that path on the wire.
+- **A place data lives on purpose.** Rows, blobs, caches, and logs are different jobs. Mixing them is how designs rot.
+- **A failure story.** What dies, what still serves, what you postpone. Distributed Systems is why that story is surprising.
+- **A way to operate it.** Logs, metrics, traces. Monitoring and Observability is the chapter.
+
+A bigger virtual machine is not system design by itself. It is one lever. When that lever runs out, you need the rest of this book.
+
+### System Design vs Software Design vs Architecture
+
+Three layers show up in every later chapter. Mixing them up is the most common beginner trap, so we separate them now.
+
+**1. Software design — inside one service**
+
+- Modules, types, in-process APIs, tests, and how a single codebase is structured.
+- The unit is a process you could run on a laptop. Latency is function calls. Failure is an exception you catch.
+- This book does not teach that layer. You still sketch a tiny interface when a contract must be obvious. API Design is the contract between services, not the class diagram inside one of them.
+
+**2. System design — the working path between services**
+
+- Components, contracts, and operational qualities. The unit is a request path: who calls, what is stored, what is cached, what is async, what happens when a replica dies.
+- You choose products on purpose: [PostgreSQL](https://www.postgresql.org/) versus [Redis](https://redis.io/), a queue versus [Apache Kafka](https://kafka.apache.org/), [NGINX](https://nginx.org/) or a cloud load balancer as the front door.
+- This book is that layer. Foundations teach the levers. Applied designs at the end (Design a URL Shortener, Design Twitter, Design Netflix) use them on a full path.
+
+**3. Architecture — the long-lived map**
+
+- Domains, bounded contexts, which system owns which data, which team owns which path, what you will not build this year.
+- Architectural Patterns, Microservices, and Cloud-Native Architecture is where monoliths, events, and [Kubernetes](https://kubernetes.io/) live. Architecture is the map. System design is how a request walks that map today.
+
+**Working rule:** when we say software design, we mean inside one service. When we say system design, we mean the path and its qualities. When we say architecture, we mean the long-lived map those paths sit on. A clean module layout does not make a feed scale. A [Kubernetes](https://kubernetes.io/) cluster does not make a schema right. Name the layer you are in before you pick a box.
+
+### Qualities You Design For
+
+Functional requirements are what the product does: shorten a URL, fan out a post, charge a card. **Non-functional requirements** are the qualities the path must hold while it does that. Specs often start from the functional list; the skill starts from both. We teach the qualities first so later designs have words for the constraint.
+
+The qualities we will spend the next chapter on:
+
+- **Scalability.** The path still works as load and data grow. Vertical scaling is a bigger box. Horizontal scaling is more boxes. They are not the same, and performance is not a synonym for either.
+- **Availability.** The path answers when a user asks. Nines, sequence versus parallel, high availability versus fault tolerance.
+- **Fault tolerance.** What happens when a component dies: single points of failure, failover, active-active versus active-passive.
+- **Reliability.** The path is correct over time, not only up. Availability versus reliability; SLA, SLO, and SLI.
+- **Performance.** Latency, throughput, bandwidth, tail percentiles, and the numbers worth memorizing so estimates are not fiction.
+- **Disaster recovery.** RPO, RTO, backups, multi-region. A second process in one rack is not a region story.
+
+You cannot maximize all of them. A strongly consistent multi-region write path will cost latency. A cache that hides the primary will cost freshness. Write the qualities that matter for *this* path, then pick. Capacity planning and back-of-the-envelope math is how those picks get numbers. We do that in the next chapter, not as a 45-minute ritual.
+
+### Building Blocks You Will Name
+
+We teach these later. We link them now so "the cloud" is not a fog. Name a product when the choice matters. A box labeled "database" is fine on the first sketch; a box labeled [PostgreSQL](https://www.postgresql.org/) that you cannot explain is worse than the unlabeled box.
+
+#### Cloud and Compute
+
+**[Amazon Web Services (AWS)](https://aws.amazon.com/)**, **[Google Cloud](https://cloud.google.com/)**, and **[Microsoft Azure](https://azure.microsoft.com/)** are the three hosted platforms most teams will accept as a sketch. They sell compute, networking, stores, and managed building blocks. You do not need an account today. You do need to know they are vendors, not designs.
+
+- **Primary function:** rent regions, instances, load balancers, and managed services so you do not rack hardware for the first path.
+- **When we send you here:** when a later chapter names a managed building block (object storage, a load balancer, a managed queue) and you need a product you can point at.
+- **What they are not:** not a reason to draw every product in the catalog. Reciting [AWS](https://aws.amazon.com/) names without a why is weaker than naming "blob store" and the trade-off.
+
+**[Kubernetes](https://kubernetes.io/)** is how many teams run containers. Official site: [kubernetes.io](https://kubernetes.io/). Docs: [Kubernetes documentation](https://kubernetes.io/docs/). It is a later chapter (Cloud-Native Architecture), not a default first box. A request path that cannot be explained without a cluster is usually a path you have not designed yet.
+
+**[NGINX](https://nginx.org/)** and **[Envoy](https://www.envoyproxy.io/)** are reverse proxies you can put in front of application servers. Cloud load balancers are the hosted equivalent. Load Balancing in Networking, Protocols, and Web Concepts is the chapter. For a first sketch, "load balancer" plus who it health-checks is enough.
+
+#### Datastores, Caches, and Object Storage
+
+**[PostgreSQL](https://www.postgresql.org/)** is the default relational answer in this book. Official site: [postgresql.org](https://www.postgresql.org/). Docs: [PostgreSQL documentation](https://www.postgresql.org/docs/). Use it when you need rows, transactions, and a schema you can query. SQL Databases is the later write-up.
+
+**[Redis](https://redis.io/)** is the default cache and fast key-value answer. Official site: [redis.io](https://redis.io/). Docs: [Redis documentation](https://redis.io/docs/). Use it when reads dominate and a TTL is an acceptable lie. It is not a durable primary because you named it. Caching and Content Delivery Networks is the chapter.
+
+**Object storage** is where blobs and media go. Products: [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs). Metadata stays in a row store. The blob stays in object storage. Mixing those jobs is how photo and video paths explode a database.
+
+Databases and Storage unpacks SQL versus NoSQL, replication, and sharding. This section only names the defaults so later sentences have somewhere to point.
+
+#### Async Paths, Edge, and Observability
+
+**[Apache Kafka](https://kafka.apache.org/)** is the log/stream name you will keep seeing. Official site: [kafka.apache.org](https://kafka.apache.org/). Docs: [Apache Kafka documentation](https://kafka.apache.org/documentation/). A simpler message queue is often the right first async box. Jumping to a log because the name is famous is the same mistake as putting [Redis](https://redis.io/) on every arrow. Message Queues, Streams, and Real-Time Communication is the chapter.
+
+**[Cloudflare](https://www.cloudflare.com/)** is a CDN and edge product you can point at. Official site: [cloudflare.com](https://www.cloudflare.com/). Docs: [Cloudflare Docs](https://developers.cloudflare.com/). A CDN is not a cache for personalized, write-heavy data. What a CDN Does Not Solve lives under Caching and Content Delivery Networks.
+
+**Observability** is how you prove the path is operable. **[Prometheus](https://prometheus.io/)** and **[Grafana](https://grafana.com/)** are the default open metrics-and-dashboard pair. **[Datadog](https://www.datadoghq.com/)** is a hosted equivalent. **[OpenTelemetry](https://opentelemetry.io/)** is how traces and metrics get a vendor-neutral shape. Monitoring and Observability is the chapter. A design with no "how would you know this is sick?" is unfinished.
+
+### How We Practice
+
+This book is tools-heavy and has no code snippets, so it has no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the path, estimating the numbers that change the design, and naming products only when the choice matters. This section is a map, not a lab. You do not need a cloud account to finish this chapter.
+
+**What you need for the main path:**
+
+- A web browser.
+- A canvas: [Excalidraw](https://excalidraw.com/) by default, [diagrams.net](https://www.diagrams.net/) for notes.
+- No paid cloud plan. No [Kubernetes](https://kubernetes.io/) cluster. No local database to install.
+
+**The canvases we will keep naming:**
+
+#### [Excalidraw](https://excalidraw.com/) as the Default Canvas
+
+**[Excalidraw](https://excalidraw.com/)**
+
+- **Primary function:** a fast infinite canvas. Boxes, arrows, and handwriting without a stencil library getting in the way.
+- **When we send you here:** after a foundations chapter, redraw the core picture from memory (request path, replication, cache placement). After an applied design, draw the whole path before you peek.
+- **How you open it:** [excalidraw.com](https://excalidraw.com/). Developer docs: [Excalidraw documentation](https://docs.excalidraw.com/). Source: [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw).
+- **What it is not:** not an [AWS](https://aws.amazon.com/) / [Google Cloud](https://cloud.google.com/) / [Azure](https://azure.microsoft.com/) shape kit. For those libraries, use [diagrams.net](https://www.diagrams.net/).
+
+#### [diagrams.net](https://www.diagrams.net/) and Cloud Icon Sets
+
+**[diagrams.net](https://www.diagrams.net/)** (also called [draw.io](https://www.drawio.com/))
+
+- **Primary function:** structured diagrams with official cloud shape libraries.
+- **When we send you here:** study notes, take-home diagrams, and when you want [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/), [Google Cloud icons](https://cloud.google.com/icons), or [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/) on the page.
+- **How you open it:** [app.diagrams.net](https://app.diagrams.net/). Product: [diagrams.net](https://www.diagrams.net/).
+- **What it is not:** not the fastest first sketch. Prefer [Excalidraw](https://excalidraw.com/) unless you already need stencils.
+
+Use the icon sets in [diagrams.net](https://www.diagrams.net/) when you write notes. Do not pause a working sketch to hunt a perfect [Amazon S3](https://aws.amazon.com/s3/) stencil. Pretty diagrams are not the skill. A readable path is.
+
+#### [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), and Other Whiteboards You May Be Handed
+
+**[Miro](https://miro.com/)** and **[FigJam](https://www.figma.com/figjam/)** (from [Figma](https://www.figma.com/)) are company whiteboards. **[CoderPad](https://coderpad.io/)** is often a coding pad with a drawing mode. **[Google Drawings](https://docs.google.com/drawings)** shows up when the loop is a shared doc. A physical whiteboard is still a canvas.
+
+- **Primary function:** collaborative boards other people already opened.
+- **When we send you here:** when your team, your recruiter, or a later optional interview chapter named the tool. Do not make them the study default.
+- **How you open them:** [miro.com](https://miro.com/), [FigJam](https://www.figma.com/figjam/), [coderpad.io](https://coderpad.io/), [Google Drawings](https://docs.google.com/drawings).
+- **What they are not:** not required for this book. The skill does not change with the canvas. Freezing because the tool is new is a communication problem, not a system design problem.
+
+**Working loop we will repeat:**
+
+1. Read the chapter (this README is the lesson).
+2. Redraw the picture in [Excalidraw](https://excalidraw.com/) (or [diagrams.net](https://www.diagrams.net/) for notes).
+3. Name real products only when the choice matters: [Redis](https://redis.io/) versus [PostgreSQL](https://www.postgresql.org/), [Apache Kafka](https://kafka.apache.org/) versus a simpler queue, [Cloudflare](https://www.cloudflare.com/) as an edge, [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/) or [Datadog](https://www.datadoghq.com/) as telemetry.
+4. Change one constraint (load, data size, a region dying) and redraw. That is the skill. Timed 45-minute practice waits until the optional interview add-on.
+
+### How this book is organized
+
+Every later chapter is a working loop: read the lever, draw it, name a product on purpose. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/) in this book. Chapter names in the Table of Contents are the contract; when we say Large-Scale Systems: Scalability, Availability, Reliability, and Performance, that is the next heading you will meet.
+
+- **Foundations.** Qualities, networking, APIs, databases, caches, queues, patterns, distributed systems, algorithms, security, observability, payments, and AI systems. This is the skill.
+- **System Design Interviews (Optional)** and **The Interview Working Loop.** Skip these if you are here to design systems at work. Read them if you also need a 45-minute conversation on a shared canvas.
+- **Applied designs.** Classic Warm-Up Problems through Infrastructure and Platform Problems: Design a URL Shortener, Design Twitter, Design Netflix, Design a Key-Value Store, and the rest. They apply the foundations. They are not a substitute for the foundations.
+- **Common Challenges and Debugging Tips** and **Additional Resources and Reading Materials.** Debug order, a 30-day practice plan, and the catalog.
+
+We will not invent company case studies. Each chapter ends with `Summary: {that chapter's title}` and points to the next heading. There is no `Conclusion` heading.
+
+Do not collect twenty cloud accounts today. Collect a canvas ([Excalidraw](https://excalidraw.com/)), then draw.
+
+Your loop for the rest of today: finish this chapter, then in Large-Scale Systems: Scalability, Availability, Reliability, and Performance learn the qualities every later path is judged by.
+
+### Summary: Introduction to System Design
+
+System design is choosing components, contracts, and operational qualities so a path still works as load, data, and failure grow — not software design inside one service, not an architecture map, and not a cloud-logo collage. The problems it solves are load, data, failure, latency versus correctness, and change. The building blocks you will keep naming are products such as [Amazon Web Services (AWS)](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), [Microsoft Azure](https://azure.microsoft.com/), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Apache Kafka](https://kafka.apache.org/), and [Cloudflare](https://www.cloudflare.com/). Practice on [Excalidraw](https://excalidraw.com/), keep [diagrams.net](https://www.diagrams.net/) for notes, and treat [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), and [CoderPad](https://coderpad.io/) as tools you may be handed. This book is foundations first, then an optional interview add-on, then applied designs. Next is **Large-Scale Systems: Scalability, Availability, Reliability, and Performance**.

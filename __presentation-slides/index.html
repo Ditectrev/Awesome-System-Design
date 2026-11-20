@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Awesome System Design Book & Course: System Design</title>
+  <link rel="stylesheet" href="dist/reset.css">
+  <link rel="stylesheet" href="dist/reveal.css">
+  <link rel="stylesheet" href="dist/theme/serif.css">
+  <link rel="stylesheet" href="plugin/highlight/monokai.css">
+  <style>
+    .fragment.blur { filter: blur(1rem); }
+    .fragment.blur.visible { filter: none; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-markdown>
+        <textarea data-template>
+# Welcome <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Introduction to System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Choose components, contracts, and operational qualities <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A system is not one process <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Clients, DNS, load balancing, services, datastores, caches, async paths, telemetry <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* The job is a request path you can test, operate, and change <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Component: a box with a job <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Contract: API, schema, delivery guarantee, timeout <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Operational quality: scale, availability, reliability, latency, durability <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Trade-off: two options, a criterion, a pick <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Not software design inside one service <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a logo collage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Naming [Kubernetes](https://kubernetes.io/) without a request path is not a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A [Redis](https://redis.io/) TTL plus a reason is a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a coding exercise; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Trade-offs under constraints <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "Put [Redis](https://redis.io/) and [Apache Kafka](https://kafka.apache.org/) everywhere" is not a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* The rest of this book trains the sentence that picks <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Problem System Design Solves <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What Problem System Design Solves <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Load <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Data <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Failure <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Latency versus correctness <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Change <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Problem System Design Solves <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* One instance cannot take every request <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A single disk fills; blobs do not belong in a row store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Disks, processes, racks, and regions die <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Users feel tail latency; finance feels stale writes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A contract you can version is how you change without starting over <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Problem System Design Solves <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* A request you can trace <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A place data lives on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A failure story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A way to operate it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A bigger VM is one lever, not the skill <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### System Design vs Software Design vs Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### System Design vs Software Design vs Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Three layers; mixing them up is the beginner trap <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Software design — inside one service <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* System design — the working path between services <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Architecture — the long-lived map <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### System Design vs Software Design vs Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Software design: modules, types, in-process APIs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Latency is a function call; failure is an exception <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* This book does not teach that layer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* API Design is the contract between services, not a class diagram <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### System Design vs Software Design vs Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* System design: who calls, what is stored, what is cached, what is async <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Products on purpose: [PostgreSQL](https://www.postgresql.org/) vs [Redis](https://redis.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A queue vs [Apache Kafka](https://kafka.apache.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [NGINX](https://nginx.org/) or a cloud load balancer as the front door <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* This book is that layer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### System Design vs Software Design vs Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Architecture: domains, ownership, what you will not build this year <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Monoliths, events, and [Kubernetes](https://kubernetes.io/) live there later <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Architecture is the map; system design is how a request walks it today <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name the layer before you pick a box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Qualities You Design For <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Qualities You Design For <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Functional: what the product does <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Non-functional: qualities the path must hold <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Specs often start from features; the skill starts from both <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter spends a whole heading on each quality <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Qualities You Design For <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Scalability: vertical vs horizontal <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Availability: nines, sequence vs parallel <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fault tolerance: what dies, what still serves <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Reliability: correct over time; SLA, SLO, SLI <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Performance: latency, throughput, tail percentiles <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Disaster recovery: RPO, RTO, multi-region <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Qualities You Design For <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* You cannot maximize all of them <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Multi-region consistency costs latency <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A cache costs freshness <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Write the qualities that matter for this path, then pick <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Building Blocks You Will Name <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Building Blocks You Will Name <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* We teach them later; we link them now <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name a product when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* An unlabeled "database" beats a [PostgreSQL](https://www.postgresql.org/) box you cannot explain <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Cloud and Compute <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Cloud and Compute <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [AWS](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), [Microsoft Azure](https://azure.microsoft.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Vendors, not designs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No account required today <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Reciting product names without a why is weaker than "blob store" plus a trade-off <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Cloud and Compute <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Kubernetes](https://kubernetes.io/) is later, not a default first box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Docs: [Kubernetes documentation](https://kubernetes.io/docs/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [NGINX](https://nginx.org/) and [Envoy](https://www.envoyproxy.io/) as reverse proxies <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* First sketch: load balancer plus who it health-checks <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Datastores, Caches, and Object Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Datastores, Caches, and Object Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [PostgreSQL](https://www.postgresql.org/): default relational store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Redis](https://redis.io/): default cache and fast key-value <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A TTL is an acceptable lie; [Redis](https://redis.io/) is not a durable primary because you named it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Datastores, Caches, and Object Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Blobs: [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Metadata in a row store; the blob in object storage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Mixing those jobs explodes a database <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Async Paths, Edge, and Observability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Async Paths, Edge, and Observability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Apache Kafka](https://kafka.apache.org/) is the log/stream name <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A simpler queue is often the right first async box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Cloudflare](https://www.cloudflare.com/) as CDN and edge <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A CDN is not a cache for personalized, write-heavy data <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Async Paths, Edge, and Observability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Datadog](https://www.datadoghq.com/) as a hosted equivalent <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [OpenTelemetry](https://opentelemetry.io/) for vendor-neutral traces and metrics <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No "how would you know this is sick?" means the design is unfinished <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How We Practice <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### How We Practice <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Tools-heavy; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw, estimate, name products on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A browser and a canvas; no cloud account for this chapter <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Default canvas: [Excalidraw](https://excalidraw.com/); notes: [diagrams.net](https://www.diagrams.net/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How We Practice <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Read the chapter <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Redraw in [Excalidraw](https://excalidraw.com/) (or [diagrams.net](https://www.diagrams.net/) for notes) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name [Redis](https://redis.io/), [PostgreSQL](https://www.postgresql.org/), [Apache Kafka](https://kafka.apache.org/), [Cloudflare](https://www.cloudflare.com/) only when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Telemetry: [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/), or [Datadog](https://www.datadoghq.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Change one constraint and redraw <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Excalidraw as the Default Canvas <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Excalidraw as the Default Canvas <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Fast infinite canvas: boxes, arrows, handwriting <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Open: [excalidraw.com](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Docs: [Excalidraw documentation](https://docs.excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Source: [excalidraw/excalidraw](https://github.com/excalidraw/excalidraw) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a cloud stencil kit <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### diagrams.net and Cloud Icon Sets <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### diagrams.net and Cloud Icon Sets <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [diagrams.net](https://www.diagrams.net/) (also [draw.io](https://www.drawio.com/)): structured diagrams <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Open: [app.diagrams.net](https://app.diagrams.net/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/), [Google Cloud icons](https://cloud.google.com/icons), [Azure architecture icons](https://learn.microsoft.com/azure/architecture/icons/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* For notes, not the fastest first sketch <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not hunt a perfect [Amazon S3](https://aws.amazon.com/s3/) stencil mid-sketch <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Miro, FigJam, and Other Whiteboards You May Be Handed <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Miro, FigJam, and Other Whiteboards You May Be Handed <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Miro](https://miro.com/) and [FigJam](https://www.figma.com/figjam/) ([Figma](https://www.figma.com/)): company whiteboards <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [CoderPad](https://coderpad.io/) and [Google Drawings](https://docs.google.com/drawings): if someone already opened them <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not the study default <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* The skill does not change with the canvas <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How this book is organized <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### How this book is organized <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Foundations first: the skill <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* System Design Interviews (Optional) and The Interview Working Loop: skip if you are here for the job <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Applied designs at the end: Design Twitter, Design Netflix, Design a Key-Value Store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Common Challenges, then Additional Resources <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How this book is organized <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Tools-heavy; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No invented case studies <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Every chapter closes with `Summary: {Exact Chapter Title}` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No `Conclusion` headings <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next: Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Introduction to System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Introduction to System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Components, contracts, and qualities — not a logo collage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Problems: load, data, failure, latency vs correctness, change <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not software design inside one service; not the architecture map <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Building blocks: [AWS](https://aws.amazon.com/), [Google Cloud](https://cloud.google.com/), [Azure](https://azure.microsoft.com/), [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Apache Kafka](https://kafka.apache.org/), [Cloudflare](https://www.cloudflare.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Introduction to System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Practice on [Excalidraw](https://excalidraw.com/); notes in [diagrams.net](https://www.diagrams.net/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Miro](https://miro.com/), [FigJam](https://www.figma.com/figjam/), [CoderPad](https://coderpad.io/) if handed them <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Foundations first, optional interview add-on, then applied designs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next: Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+        </textarea>
+      </section>
+    </div>
+  </div>
+  <script src="dist/reveal.js"></script>
+  <script src="plugin/notes/notes.js"></script>
+  <script src="plugin/markdown/markdown.js"></script>
+  <script src="plugin/highlight/highlight.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      slideNumber: 'c/t',
+      plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+    });
+  </script>
+</body>
+</html>
