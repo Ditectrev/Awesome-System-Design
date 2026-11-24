@@ -2088,3 +2088,600 @@ Clients parse errors with code. A string poem in `message` is for humans; a **st
 ### Summary: API Design
 
 An API is a **contract**: audience, surface, failure, replay, shape, quota — written in [OpenAPI](https://www.openapis.org/), [GraphQL](https://graphql.org/) SDL, or [Protocol Buffers](https://protobuf.dev/), exercised with [curl](https://curl.se/) / [Bruno](https://www.usebruno.com/), linted with [Spectral](https://stoplight.io/open-source/spectral) or [Buf](https://buf.build/). **REST** is resources, verbs, and status ([RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)); paginate with opaque cursors; version in the URL when you must break. **GraphQL** is one graph for many client shapes, with batched resolvers ([DataLoader](https://github.com/graphql/dataloader)) and field authz — not a datastore ([Apollo](https://www.apollographql.com/), [AWS AppSync](https://aws.amazon.com/appsync/)). **gRPC** is typed RPC on HTTP/2 for service-to-service; browsers get [Connect](https://connectrpc.com/) or REST. **Gateways** ([Amazon API Gateway](https://aws.amazon.com/api-gateway/), [Kong](https://konghq.com/), [Apigee](https://cloud.google.com/apigee)) enforce policy; **BFFs** ([Backends for Frontends](https://samnewman.io/patterns/architectural/bff/)) shape per client. **Webhooks** are signed outbound HTTP ([Standard Webhooks](https://www.standardwebhooks.com/), [CloudEvents](https://cloudevents.io/)) with retries. **Idempotency keys** plus a store ([Redis](https://redis.io/), [PostgreSQL](https://www.postgresql.org/), [Amazon DynamoDB](https://aws.amazon.com/dynamodb/)) make POST safe to retry. **Rate limits** name a key, a layer, and `429` + `Retry-After`. **Errors** are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) plus a stable code; compatibility is additive or a sunset. Draw the contract in [Excalidraw](https://excalidraw.com/). Next is **Databases and Storage**.
+
+## Databases and Storage
+
+API Design is the contract. This chapter is the **state** that contract reads and writes: where bytes live, which product owns which job, and which trade-off you just bought. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the store in [Excalidraw](https://excalidraw.com/) first — what is durable, what is a cache, what is a blob, what is a replica — then naming a product ([PostgreSQL](https://www.postgresql.org/), [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), [Amazon S3](https://aws.amazon.com/s3/)) only when the choice matters. The next chapter is Caching and Content Delivery Networks — the copies that sit *in front* of this state.
+
+A database is not "we have SQL." It is a durability, consistency, and query contract you can operate when a disk dies, a replica lags, and a partition key starts to glow. Miss the contract and a retry double-writes, a photo blows up a row store, and a shard you cannot split becomes the availability incident.
+
+```mermaid
+flowchart LR
+  api[API]
+  meta[(Row store)]
+  blob[Object storage]
+  cache[Cache]
+  replica[(Replica)]
+  api --> meta
+  api --> blob
+  api -.-> cache
+  meta --> replica
+```
+
+*Three different jobs. Metadata in a row store, bytes in object storage, hot reads in a cache. Draw those boxes in [Excalidraw](https://excalidraw.com/) before you pick [Amazon Aurora](https://aws.amazon.com/rds/aurora/) or [Amazon S3](https://aws.amazon.com/s3/).*
+
+### What a Database Is in System Design
+
+A **database** is software that stores data, finds it again, and (usually) survives a process restart. In this book it is the **system of record** for some slice of the product: orders, users, inventory, the mapping from short code to URL. Everything else — [Redis](https://redis.io/) with a TTL, a CDN, a materialized view, a search index — is a **derived** copy until you say otherwise.
+
+A usable store makes six facts obvious without a meeting:
+
+1. **Job.** System of record, cache, blob, search, analytics. Mixing two jobs in one product is how photo bytes land in [PostgreSQL](https://www.postgresql.org/) and how a cache becomes the only copy of a payment.
+2. **Access.** Point lookup by key, relational query, scan, graph walk. The access path picks the model more honestly than a blog post about NoSQL.
+3. **Durability.** What survives a crash, a zone, a region. [Amazon S3](https://aws.amazon.com/s3/) eleven nines of durability is not the same sentence as [Redis](https://redis.io/) AOF.
+4. **Consistency.** What a reader is allowed to see after a write. Local ACID, session, eventual — pick one and write it on the sketch.
+5. **Growth.** Vertical until it hurts, then replicas for reads, then shards for writes. Capacity Planning already taught the math; this chapter names the split.
+6. **Failure.** Leader dies, replica lags, disk full, hot partition. If you cannot point at failover, you drew a single point of failure (Large-Scale Systems).
+
+The **artifact** is the data model plus the product. Pick both:
+
+**[PostgreSQL](https://www.postgresql.org/)** (with **[Amazon RDS](https://aws.amazon.com/rds/)**, **[Amazon Aurora](https://aws.amazon.com/rds/aurora/)**, or **[Cloud SQL](https://cloud.google.com/sql)** when you do not want to run it)
+
+- **Primary function:** relational system of record: rows, schemas, transactions, indexes, SQL. Docs: [PostgreSQL documentation](https://www.postgresql.org/docs/).
+- **When we send you here:** the default OLTP box in this book. Foreign keys, joins, and a query you can explain beat a document store you cannot.
+- **What it is not:** not a blob store, not a cache, not a warehouse. A 20 MB JSON column of images is a design you will undo.
+
+**Working rule:** name the job, the access path, and what happens when this process dies. A logo is not a database design. Write "system of record" or "derived" on every store box in [Excalidraw](https://excalidraw.com/).
+
+### Storage Layers
+
+Databases sit on storage. Confusing the layers is how you put a WAL on object storage and wait, or how you treat a network file system as a lock server. Three layers show up on sketches: **block**, **file**, and **object**. RAID, NAS, and [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) are how teams assemble those layers when the cloud SKU is not the whole story.
+
+```mermaid
+flowchart TB
+  db[Database process]
+  file[File / POSIX]
+  block[Block volume]
+  object[Object store]
+  db --> file
+  db --> block
+  db -.-> object
+```
+
+*The database process usually talks POSIX or a block device. Object storage is a different API — HTTP, eventual listing, no POSIX locks. Do not mount [Amazon S3](https://aws.amazon.com/s3/) and pretend it is a disk.*
+
+#### File, Block, and Object Storage
+
+| Layer | Unit | API | Use on a sketch | Cost |
+| --- | --- | --- | --- | --- |
+| Block | Sectors / pages | Volume attached to one (or few) VMs | Database data directory, WAL, VM disks | Fast; one attacher; you manage filesystem |
+| File | Files and directories | POSIX / NFS | Shared home dirs, lift-and-shift apps that *need* a filesystem | Locks and latency over the network; not a database |
+| Object | Immutable blobs + key | HTTP PUT/GET | Media, backups, data lakes, anything big and cold | No POSIX; listing and rename are different; eventual consistency on some operations |
+
+*Pick the layer from the access pattern, not from the brand. A photo is an object. A [PostgreSQL](https://www.postgresql.org/) data directory is a block volume. A "shared disk" for two database primaries is a split brain waiting to happen.*
+
+**Block.** A volume that looks like a disk: [Amazon EBS](https://aws.amazon.com/ebs/), [Google Persistent Disk](https://cloud.google.com/persistent-disk), [Azure Disk Storage](https://azure.microsoft.com/products/storage/disks). You format it, mount it, put the database on it. IOPS and throughput are the knobs; bursting is a trap at p99. Multi-attach exists; using it as a cluster filesystem without a lock manager is how you corrupt a data directory.
+
+**[Amazon EBS](https://aws.amazon.com/ebs/)**
+
+- **Primary function:** network-attached block volumes for [Amazon EC2](https://aws.amazon.com/ec2/) (gp3 / io2, snapshots to [Amazon S3](https://aws.amazon.com/s3/)).
+- **When we send you here:** self-managed [PostgreSQL](https://www.postgresql.org/) or [MySQL](https://www.mysql.com/) on a VM; you need provisioned IOPS and snapshot restore.
+- **What it is not:** not object storage. Snapshots are backups, not a replica. Multi-attach is not a substitute for replication.
+
+**File.** POSIX: open, read, write, rename, lock. Local ext4/XFS, or network: NFS ([RFC 7530](https://datatracker.ietf.org/doc/html/rfc7530)), [Amazon EFS](https://aws.amazon.com/efs/), [Google Filestore](https://cloud.google.com/filestore), [Azure Files](https://azure.microsoft.com/products/storage/files). Shared filesystems are for content that many machines must see as files. They are a poor primary for a latency-sensitive WAL.
+
+**Object.** A key, a blob, metadata headers, HTTP. **[Amazon S3](https://aws.amazon.com/s3/)**, **[Google Cloud Storage](https://cloud.google.com/storage)**, **[Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)**, self-hosted **[MinIO](https://min.io/)** or **[Ceph](https://ceph.io/en/)** RADOS Gateway. Strong read-after-write for new keys on [Amazon S3](https://aws.amazon.com/s3/) today; listing, overwrite, and cross-region are still the sentences you must read. Versioning and object lock are how backups stop ransomware from being a delete.
+
+**[Amazon S3](https://aws.amazon.com/s3/)** (and **[Google Cloud Storage](https://cloud.google.com/storage)**, **[Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)**)
+
+- **Primary function:** durable object store: PUT/GET by key, lifecycle, versioning, replication. Eleven nines of durability is the marketing number; availability is a different SLO.
+- **When we send you here:** media, exports, database dumps, data lakes. Metadata (owner, content-type, URL) stays in a row store.
+- **What it is not:** not a filesystem, not a queue, not a database. [s3fs-fuse](https://github.com/s3fs-fuse/s3fs-fuse) is a demo, not an architecture.
+
+**Working rule:** blobs in object storage, database files on block, POSIX only when the app truly needs files. If the sketch has one cylinder for "storage," you have not designed storage.
+
+#### RAID, NAS, and HDFS
+
+**RAID** is how disks inside one box pretend to be one disk: stripe for throughput (RAID 0), mirror for a disk failure (RAID 1), parity for capacity (RAID 5/6), mixes (RAID 10). It is a **device** story, not a **database** story. RAID 1 does not replace a replica in another zone. RAID 0 is speed you will restore from backup. Cloud block volumes already hide RAID; name it only when you are still buying spindles or when an on-prem diagram is the interview.
+
+**NAS** (Network Attached Storage) is a file server on the network: NFS/SMB, a box like a [NetApp](https://www.netapp.com/) filer, or [Amazon EFS](https://aws.amazon.com/efs/). **SAN** is the block cousin (iSCSI, Fibre Channel): a LUN, not a path. NAS/SAN are shared storage. Two database writers on one LUN without a cluster filesystem and a lock manager is split brain (Large-Scale Systems: Active-Active vs Active-Passive).
+
+**[HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html)** (Hadoop Distributed File System, part of [Apache Hadoop](https://hadoop.apache.org/)) is a **distributed** filesystem for large sequential files: 128 MB blocks, replication (default 3), a NameNode for metadata, DataNodes for bytes. It is how MapReduce used to read the warehouse. It is not a POSIX home directory and not an OLTP store. Today the same *job* is often object storage ([Amazon S3](https://aws.amazon.com/s3/)) plus a table format; Big Data Architecture Patterns owns lakes and warehouses. Here you only need: huge sequential files → HDFS or objects; tiny random writes → a database.
+
+```mermaid
+flowchart LR
+  subgraph box [One machine]
+    raid[RAID]
+    disks[Disks]
+    raid --> disks
+  end
+  subgraph net [Network]
+    nas[NAS / NFS]
+    san[SAN / LUN]
+  end
+  subgraph dist [Many machines]
+    hdfs[HDFS]
+    obj[Object store]
+  end
+```
+
+*RAID is inside one box. NAS/SAN are a network hop. [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) and objects are many machines. A replica in another AZ is none of these — that is Replication below.*
+
+**Working rule:** RAID survives a disk. NAS shares files. [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) / objects survive a machine. None of them is a second primary. If you need another copy of the database, you want replication, not a fancier disk.
+
+### SQL Databases
+
+**SQL** databases store **relations** (tables), enforce a **schema**, and speak **SQL**. The query optimizer picks indexes; transactions give you ACID on one node (and, with work, across nodes). This is the default system of record in this book.
+
+**[PostgreSQL](https://www.postgresql.org/)** is the default we already named. **[MySQL](https://www.mysql.com/)** / **[MariaDB](https://mariadb.org/)** are the other open relational pair ([InnoDB](https://dev.mysql.com/doc/refman/en/innodb-storage-engine.html) is the engine that actually lasts). **[SQLite](https://www.sqlite.org/)** is embedded, one file, brilliant for a client or a test, not a multi-writer server. **[Microsoft SQL Server](https://www.microsoft.com/sql-server)** and **[Oracle Database](https://www.oracle.com/database/)** show up when the enterprise already owns them — the design sentences (indexes, transactions, replicas) still apply.
+
+Hosted: **[Amazon RDS](https://aws.amazon.com/rds/)** (you still pick the engine), **[Amazon Aurora](https://aws.amazon.com/rds/aurora/)** (MySQL- and PostgreSQL-compatible, storage that replicates across AZs), **[Cloud SQL](https://cloud.google.com/sql)**, **[Azure Database for PostgreSQL](https://azure.microsoft.com/products/postgresql/)**, **[Azure SQL Database](https://azure.microsoft.com/products/azure-sql/database/)**. **NewSQL** (SQL plus distributed consensus): **[CockroachDB](https://www.cockroachlabs.com/)**, **[Google Cloud Spanner](https://cloud.google.com/spanner)**, **[YugabyteDB](https://www.yugabyte.com/)**, **[TiDB](https://www.pingcap.com/tidb/)**, **[PlanetScale](https://planetscale.com/)** ([Vitess](https://vitess.io/) in front of [MySQL](https://www.mysql.com/)). They buy you horizontal SQL at the cost of latency, operational model, and "not every PostgreSQL extension."
+
+**[PostgreSQL](https://www.postgresql.org/)**
+
+- **Primary function:** open relational database: MVCC, rich types (JSONB, arrays), [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html), extensions, streaming replication.
+- **When we send you here:** almost every OLTP sketch until a measured reason says otherwise.
+- **What it is not:** not infinitely writable on one primary. JSONB is a column type, not a reason to skip a schema.
+
+**[Amazon Aurora](https://aws.amazon.com/rds/aurora/)**
+
+- **Primary function:** managed MySQL/PostgreSQL-compatible engine with a distributed storage layer, automated multi-AZ, fast crash recovery, read replicas that share storage.
+- **When we send you here:** you want [PostgreSQL](https://www.postgresql.org/) / [MySQL](https://www.mysql.com/) on [AWS](https://aws.amazon.com/) without running [Patroni](https://patroni.readthedocs.io/) yourself, and storage-level replication matters more than a particular extension.
+- **What it is not:** not [Google Cloud Spanner](https://cloud.google.com/spanner). One writer ([Aurora PostgreSQL Limitless Database](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/limitless.html) is a different product). Failover is still a failover.
+
+**Working rule:** start from [PostgreSQL](https://www.postgresql.org/). Name a different SQL engine when the team already runs it, or when a distributed SQL product is the *measured* answer to multi-region writes — not because "cloud native."
+
+#### Indexes, Materialized Views, and the N+1 Problem
+
+An **index** is a derived structure that makes one access path cheap. B-trees are the default for equality and range (Algorithms and Data Structures for System Design owns **LSM Trees vs B-Trees**). Hash indexes are equality only. Partial and covering indexes exist so you do not index a column you never filter. Every index speeds some reads and **slows every write** that touches those columns. An index you cannot name the query for is a write tax.
+
+You prove it with **[EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html)** / `EXPLAIN ANALYZE` (and [MySQL `EXPLAIN`](https://dev.mysql.com/doc/refman/en/explain.html)). **[pg_stat_statements](https://www.postgresql.org/docs/current/pgstatstatements.html)** tells you which queries actually burn time. **[pgAdmin](https://www.pgadmin.org/)** and **[DBeaver](https://dbeaver.io/)** are the GUIs; they do not replace the plan. A sequential scan on a 200 GB table is not "SQL is slow"; it is a missing predicate or a missing index.
+
+A **materialized view** is a stored query result you refresh on a schedule or on demand ([PostgreSQL materialized views](https://www.postgresql.org/docs/current/rules-materializedviews.html)). It is a cache with a schema. Stale by construction. Concurrent refresh exists; "always up to date" does not. If the view is the system of record, you built a second database and forgot.
+
+The **N+1 problem** is a loop that does one query per parent row after a list query: 1 query for 50 orders, then 50 queries for items. ORMs do this by default. [GraphQL](https://graphql.org/) resolvers do this without [DataLoader](https://github.com/graphql/dataloader) (API Design). The fix is a join, an `IN` list, or a batched loader — not a bigger instance.
+
+```mermaid
+flowchart TB
+  subgraph nplus [N+1]
+    q1[SELECT orders]
+    q2[SELECT items WHERE order_id = 1]
+    q3[SELECT items WHERE order_id = 2]
+    qn[SELECT items WHERE order_id = N]
+    q1 --> q2
+    q1 --> q3
+    q1 --> qn
+  end
+  subgraph batched [Batched]
+    b1[SELECT orders]
+    b2[SELECT items WHERE order_id IN ...]
+    b1 --> b2
+  end
+```
+
+*Same screen. N+1 pays a round trip per parent. A join or a batched `IN` pays one or two. Measure with [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html), not with hope.*
+
+**Working rule:** every hot query names an index (or a reason it is a scan). Materialized views are explicit staleness. N+1 is a round-trip bug, not a hardware problem.
+
+#### Normalization and Denormalization
+
+**Normalization** puts each fact in one place (3NF is the working target: no repeating groups, no fact that belongs to another key). Updates are correct; joins reconstruct the screen. **Denormalization** copies a fact next to the query that needs it: `customer_name` on `orders`, a counters table, a JSON snapshot of a cart.
+
+| | Normalized | Denormalized |
+| --- | --- | --- |
+| Writes | One place to update | Many copies; they will drift |
+| Reads | Joins | Cheap, shaped like the screen |
+| Integrity | Constraints can help | You own the repair |
+| Use | System of record | Read models, feeds, search, caches |
+
+*Denormalize a **read path** you have measured. Do not denormalize the ledger. Payment Systems will refuse a denormalized balance as the only truth.*
+
+```mermaid
+flowchart LR
+  cust[customers]
+  orders[orders]
+  items[order_items]
+  cust --> orders --> items
+  readModel[orders_read: customer_name + totals]
+  orders -.-> readModel
+  cust -.-> readModel
+```
+
+*Record on the left. Read model on the right. CQRS (Architectural Patterns) is this split with a proper name. Here: copy on purpose, with a refresh story.*
+
+**Working rule:** normalize the system of record. Denormalize copies you can rebuild. If you cannot name who updates the copy, you have a bug, not a speedup.
+
+### NoSQL Databases
+
+**NoSQL** is a marketing umbrella for stores that are **not** "one SQL schema plus joins as the primary API." The useful split is the **data model**: key-value, document, wide-column, graph. Each makes one access path cheap and the others expensive. "NoSQL for scale" without a model is how you buy [MongoDB](https://www.mongodb.com/) and then join in the application forever.
+
+**Working rule:** pick the model from the query, then the product. A product that can pretend to be two models still has one cheap path.
+
+#### Key-Value, Document, Wide-Column, and Graph
+
+| Model | Unit | Cheap path | Painful path | Products |
+| --- | --- | --- | --- | --- |
+| Key-value | opaque value by key | `GET` / `PUT` key | Query by value, secondary index you did not build | [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), [Redis](https://redis.io/), [etcd](https://etcd.io/), [Memcached](https://memcached.org/) |
+| Document | JSON/BSON document, often nested | Fetch document by id; indexes you declared | Cross-document joins, multi-doc transactions you did not plan | [MongoDB](https://www.mongodb.com/), [Amazon DocumentDB](https://aws.amazon.com/documentdb/), [Couchbase](https://www.couchbase.com/), [Cloud Firestore](https://firebase.google.com/docs/firestore) |
+| Wide-column | row key + column families, sparse columns | Query by primary/partition key, sequential clustering | Ad-hoc SQL, multi-partition transactions | [Apache Cassandra](https://cassandra.apache.org/), [ScyllaDB](https://www.scylladb.com/), [Apache HBase](https://hbase.apache.org/), [Google Cloud Bigtable](https://cloud.google.com/bigtable) |
+| Graph | nodes and edges | Walk a neighborhood | Global aggregations, "just store the social graph as SQL forever" without a plan | [Neo4j](https://neo4j.com/), [Amazon Neptune](https://aws.amazon.com/neptune/), [JanusGraph](https://janusgraph.org/) |
+
+```mermaid
+flowchart TB
+  kv[Key-value: key to blob]
+  doc[Document: id to JSON tree]
+  wc[Wide-column: row key to sparse columns]
+  g[Graph: node to neighbors]
+```
+
+*Four cheap paths. If your sketch needs two of these equally, you probably need two stores — or SQL.*
+
+**[Amazon DynamoDB](https://aws.amazon.com/dynamodb/)**
+
+- **Primary function:** managed key-value / document store: partition key (+ optional sort key), single-digit millisecond, on-demand or provisioned capacity, streams, global tables, transactions on a few items.
+- **When we send you here:** known access patterns, huge write or item-lookup scale, you will **not** ad-hoc query. Session stores, idempotency keys, a metadata table next to [Amazon S3](https://aws.amazon.com/s3/).
+- **What it is not:** not [PostgreSQL](https://www.postgresql.org/). A partition key you cannot name is a hot partition. `Scan` is a bill, not a query language.
+
+**[MongoDB](https://www.mongodb.com/)** (and **[Amazon DocumentDB](https://aws.amazon.com/documentdb/)** as the API-compatible managed cousin)
+
+- **Primary function:** document database: collections of BSON, secondary indexes, aggregation pipeline, replica sets, sharding.
+- **When we send you here:** documents that *are* the API shape, and you will invest in indexes and schema validation. Not because JSON is trendy.
+- **What it is not:** not a substitute for transactions across many collections unless you use the transaction API and accept the cost. Unbounded arrays in one document are a shard you cannot split.
+
+**[Apache Cassandra](https://cassandra.apache.org/)** / **[ScyllaDB](https://www.scylladb.com/)**
+
+- **Primary function:** wide-column, peer-to-peer, LSM, query-from-the-primary-key. High write throughput, multi-DC with tunable consistency (`ONE`, `QUORUM`, `ALL`).
+- **When we send you here:** time-series, inbox, write-heavy appends where you can name the partition key and the clustering columns. [ScyllaDB](https://www.scylladb.com/) is the C++ / shard-per-core implementation of the same model.
+- **What they are not:** not SQL. `ALLOW FILTERING` is a confession. Multi-row ACID is not the product.
+
+**[Neo4j](https://neo4j.com/)** / **[Amazon Neptune](https://aws.amazon.com/neptune/)**
+
+- **Primary function:** graph: Cypher or Gremlin, neighborhood queries, path finding.
+- **When we send you here:** the product *is* the walk (recommendations, authorization graphs, fraud rings). A follow graph with a few hops can still be SQL or a cache; measure first.
+- **What they are not:** not a row store for the rest of the app. Keep the system of record; project the graph.
+
+**[Redis](https://redis.io/)** appears here as a **data structure server** (strings, hashes, sorted sets, streams) with optional persistence. Caching and Content Delivery Networks owns it as a cache. As a primary: only if you accept persistence limits (AOF/RDB are not [PostgreSQL](https://www.postgresql.org/) WAL shipping) and a simple key model. **[etcd](https://etcd.io/)** is a consistent KV for *coordination* (Distributed Systems), not your user table. **[Memcached](https://memcached.org/)** is cache-only: no persistence story worth drawing as a database.
+
+**Working rule:** one cheap query per store. If you need a second cheap query, add an index, a second store, or admit SQL. Do not pick [Apache Cassandra](https://cassandra.apache.org/) to "be web scale" and then `ALLOW FILTERING`.
+
+### SQL vs NoSQL
+
+These are not rivals you rank on a conference slide. SQL is a **query model + schema + transactions**. NoSQL is a set of **access-path specialists**. Overlap exists: [PostgreSQL](https://www.postgresql.org/) JSONB, [MongoDB](https://www.mongodb.com/) transactions, [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) secondary indexes. The overlap does not make them the same.
+
+| | SQL | NoSQL |
+| --- | --- | --- |
+| Schema | Declared, migrated | Implicit, or per-document; you still need a schema in the app |
+| Query | Ad-hoc SQL, joins | Primary-key / declared indexes |
+| Transactions | Default local ACID | Varies: none, single item, or bolted on |
+| Scale writes | Vertical, then shard (pain) | Often partitioned from day one |
+| Scale reads | Replicas | Replicas / quorum |
+| Best fit | Unknown queries, relations, integrity | Known path, huge scale, specialized model |
+
+```mermaid
+flowchart TB
+  q{Can you name the queries?}
+  q -->|No, and they join| sql[SQL]
+  q -->|Yes, one key| kv[Key-value]
+  q -->|Yes, a document shape| doc[Document]
+  q -->|Yes, a row key plus time| wc[Wide-column]
+  q -->|Yes, a neighborhood| graph[Graph]
+```
+
+*Unknown queries and integrity → SQL. A named key → a specialist. "We might need both" is normal; two stores with a clear job beat one store that lies.*
+
+**NewSQL** ([CockroachDB](https://www.cockroachlabs.com/), [Google Cloud Spanner](https://cloud.google.com/spanner), [YugabyteDB](https://www.yugabyte.com/), [TiDB](https://www.pingcap.com/tidb/)) tries to keep SQL while sharding. You pay consensus latency and operational novelty. It is a valid third column when you need **SQL + multi-region writes** and will staff the product — not a default.
+
+**Working rule:** SQL until the query set is known *and* a specialist is cheaper to operate. NoSQL because of a blog post is how you reimplement joins in the application.
+
+### ACID, BASE, CAP, and PACELC
+
+Four acronyms. Three of them are over-quoted. Use them as **labels for a trade-off you already named**, not as a personality for the database.
+
+**ACID** (Atomicity, Consistency, Isolation, Durability) is what a **local transaction** promises: all or nothing, constraints hold, concurrent transactions do not stomp each other (at some isolation level), committed data survives a crash. [PostgreSQL transactions](https://www.postgresql.org/docs/current/tutorial-transactions.html) are the working example.
+
+**BASE** (Basically Available, Soft state, Eventual consistency) is [Dan Pritchett's ACM Queue piece](https://queue.acm.org/detail.cfm?id=1394128): prefer availability and a repair story over a single ACID transaction across services. It is not a license to lose writes. It is "the read may be stale; here is how it converges."
+
+**CAP** ([Brewer's conjecture](https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/), proved by [Gilbert and Lynch](https://www.comp.nus.edu.sg/~gilbert/pubs/BrewersConjecture-SigAct.pdf)): in a **partition**, you cannot have both linearizable **C**onsistency and **A**vailability. **P**artition tolerance is not a feature you drop on a WAN; the network will partition. CAP is a statement about **failure**, not about happy-path latency. Reciting "we are AP" without naming the partition behavior is trivia.
+
+**PACELC** ([Abadi, IEEE Computer](https://doi.org/10.1109/MC.2012.33); [PDF](http://www.cs.umd.edu/~abadi/papers/abadi-pacelc.pdf)): if **P**artition, trade **A** vs **C**; **E**lse (no partition), trade **L**atency vs **C**onsistency. Most real knobs are the ELC side: synchronous replication (C, more L) vs asynchronous (faster, stale reads). That is the sentence you wanted when you said CAP.
+
+```mermaid
+flowchart TB
+  p{Partition?}
+  p -->|yes| ac{Availability vs Consistency}
+  p -->|no / Else| lc{Latency vs Consistency}
+  ac --> aPick[Serve stale or refuse]
+  ac --> cPick[Wait or 503]
+  lc --> fast[Async replica, stale read]
+  lc --> slow[Sync replica, wait for flush]
+```
+
+*CAP is the left branch. PACELC adds the right branch — the one you live on every day. Write both on the sketch: what you do in a split, and what a read pays when the network is fine.*
+
+| Label | Honest use | Dishonest use |
+| --- | --- | --- |
+| ACID | This transaction is atomic at this isolation | "We are ACID" across three microservices with no saga |
+| BASE | Stale is allowed; here is repair | "Eventual" meaning "we do not know" |
+| CAP | In a partition we choose A or C | "Mongo is AP so we skip backups" |
+| PACELC | Sync vs async replication, RPO | A poster behind you in an interview |
+
+**Working rule:** name the failure (partition) and the happy path (latency vs freshness) separately. ACID is a local transaction, not a fleet. If you cannot say what a stale read does to the user, you do not have BASE; you have a bug.
+
+### Transactions
+
+A **transaction** groups reads and writes so they succeed together or not at all, under an isolation level. **Local** means one database process (or one logical primary). **Distributed** means two or more systems: two databases, a database and a queue, two microservices. The second kind does not get ACID for free.
+
+#### Local Transactions
+
+[PostgreSQL isolation levels](https://www.postgresql.org/docs/current/transaction-iso.html) (and the SQL standard) are the vocabulary:
+
+| Level | Prevents | Still possible | Default-ish |
+| --- | --- | --- | --- |
+| Read uncommitted | almost nothing | dirty reads | Rare; [PostgreSQL](https://www.postgresql.org/) treats it as read committed |
+| Read committed | dirty reads | non-repeatable reads, phantoms | [PostgreSQL](https://www.postgresql.org/) default |
+| Repeatable read | dirty + non-repeatable | phantoms (engine-dependent) | [InnoDB](https://dev.mysql.com/doc/refman/en/innodb-storage-engine.html) default |
+| Serializable | the anomalies above | — | Safer; more retries / aborts |
+
+*Isolation is not durability. You can have serializable transactions and still lose a commit if the replica is async. Name both.*
+
+**MVCC** ([PostgreSQL MVCC](https://www.postgresql.org/docs/current/mvcc.html)) keeps old row versions so readers do not block writers. Vacuum / undo is the tax. Long transactions are how you bloat the table and then page at 3 a.m.
+
+**Optimistic** concurrency: read a version (`etag`, `version` column), write `WHERE version = old`, retry on 0 rows. Fits HTTP `If-Match` from API Design. **Pessimistic**: `SELECT … FOR UPDATE`, hold a lock. Fits "this inventory row must not be sold twice in the same millisecond." Locks + long transactions = deadlock.
+
+```mermaid
+sequenceDiagram
+  participant A as Txn A
+  participant DB as Database
+  participant B as Txn B
+  A->>DB: BEGIN, read row v=1
+  B->>DB: BEGIN, read row v=1
+  A->>DB: UPDATE WHERE v=1
+  DB-->>A: ok, v=2
+  B->>DB: UPDATE WHERE v=1
+  DB-->>B: 0 rows / conflict
+  B->>B: retry
+```
+
+*Optimistic: the second writer retries. Pessimistic would have blocked B on the first lock. Pick from contention, not from fashion.*
+
+**Working rule:** default read committed, bump isolation where the anomaly hurts money or inventory, keep transactions short. A transaction that calls another HTTP API is not local anymore.
+
+#### Distributed Transactions, Two-Phase Commit, and Sagas
+
+Two systems must agree. Three tools show up; they are not interchangeable.
+
+**Two-phase commit (2PC)** ([PostgreSQL `PREPARE TRANSACTION`](https://www.postgresql.org/docs/current/sql-prepare-transaction.html), XA): a coordinator asks participants to **prepare** (vote yes, durable intent), then **commit** or **abort**. While prepared, the participant is blocked on that work. If the coordinator dies after prepare, you have a **stuck transaction** until someone resolves it. 2PC is for a small number of stores that speak XA, on a reliable LAN, with an operator who can unstick. It is not a microservice architecture.
+
+```mermaid
+sequenceDiagram
+  participant C as Coordinator
+  participant X as Store X
+  participant Y as Store Y
+  C->>X: PREPARE
+  C->>Y: PREPARE
+  X-->>C: yes
+  Y-->>C: yes
+  C->>X: COMMIT
+  C->>Y: COMMIT
+```
+
+*Happy path. The sad path is a participant that voted yes and then cannot be reached — locks held, operator required. That is why 2PC is rare across services.*
+
+**Sagas** ([Garcia-Molina and Salem, *Sagas*](https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf)): a sequence of **local** transactions, each with a **compensating** action (`ReserveSeat`, compensate `ReleaseSeat`). **Orchestration:** one worker ([AWS Step Functions](https://aws.amazon.com/step-functions/), [Temporal](https://temporal.io/)) drives the steps. **Choreography:** each step emits an event ([Apache Kafka](https://kafka.apache.org/)) and the next service reacts. Compensations are not time-travel; they are business reverse (refund, not un-send the email). Failures leave a **visible** intermediate state. Design for it.
+
+```mermaid
+flowchart LR
+  s1[Local txn: reserve]
+  s2[Local txn: charge]
+  s3[Local txn: confirm]
+  s1 --> s2 --> s3
+  s2 -.->|compensate| c2[void charge]
+  s1 -.->|compensate| c1[release]
+```
+
+*Each box is ACID locally. The chain is not. Name the compensations on the sketch or you do not have a saga; you have a distributed maybe.*
+
+**Transactional outbox:** write the business row and an `outbox` row in the **same local transaction**, then a publisher ([Debezium](https://debezium.io/) CDC, or a poller) pushes to [Apache Kafka](https://kafka.apache.org/). Dual-write (DB then queue, two commits) is how you lose the event. Message Queues, Streams, and Real-Time Communication owns the broker; here you only need: the outbox is how a database transaction becomes an event **without** 2PC.
+
+**Working rule:** one database, one transaction. Two databases, a saga or an outbox — not 2PC across HTTP. If compensation is "we will figure it out," you do not have a distributed transaction.
+
+### Replication
+
+**Replication** copies the same logical data to more nodes. Goals: durability (another disk), availability (failover), read scale (replicas), locality (another region). It is not sharding: every replica has (or can have) the **same** keyspace, unless you are also partitioning.
+
+```mermaid
+flowchart LR
+  client[Client]
+  leader[(Leader)]
+  r1[(Replica)]
+  r2[(Replica)]
+  client --> leader
+  leader --> r1
+  leader --> r2
+```
+
+*The default picture: one writer, many readers. Multi-leader and leaderless change who may write. Draw who is allowed to accept a write, and how stale a read is allowed to be.*
+
+#### Single-Leader, Multi-Leader, and Leaderless
+
+**Single-leader** (primary/secondary): one node takes writes; replicas apply a log. [PostgreSQL streaming replication](https://www.postgresql.org/docs/current/warm-standby.html), [MySQL / MariaDB replication](https://mariadb.com/kb/en/replication-overview/), [MongoDB replica sets](https://www.mongodb.com/docs/manual/replication/), [Amazon RDS](https://aws.amazon.com/rds/) Multi-AZ. Failover elects a new leader ([Patroni](https://patroni.readthedocs.io/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/) storage failover, [MongoDB](https://www.mongodb.com/) election). Clients must **not** keep writing to the dead primary (fencing). Read replicas lag; a read-your-writes path must hit the leader or wait.
+
+**Multi-leader:** two+ nodes accept writes, replicate to each other. Useful for two regions that must not wait, or a laptop that syncs later. Conflicts are the product: last-write-wins, merge, CRDT (Design Google Docs later), or "the row now has two values." [PostgreSQL logical replication](https://www.postgresql.org/docs/current/logical-replication.html) can be bent this way; [Apache CouchDB](https://couchdb.apache.org/) was born here. Do not draw two [Amazon Aurora](https://aws.amazon.com/rds/aurora/) writers in one cluster and call it multi-leader — that is not the product.
+
+**Leaderless:** every node can take a write; **quorum** decides success. Dynamo-style: `N` replicas, write `W`, read `R`, `R + W > N` for overlap. [Apache Cassandra](https://cassandra.apache.org/), [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) (managed, with its own leader-ish internals per partition), [Riak](https://riak.com/) historically. Hinted handoff, read repair, and anti-entropy (Merkle trees — later chapter) keep the copies honest. `W=1` is fast and easy to lose. `W=ALL` is 2PC with extra steps.
+
+| Topology | Who writes | Failover | Conflict |
+| --- | --- | --- | --- |
+| Single-leader | One primary | Elect / promote | Rare on writes; stale reads |
+| Multi-leader | Several primaries | Each region keeps writing | Merge rules you must name |
+| Leaderless | Any replica in the quorum | No failover; sloppy quorums | Read repair / last-write-wins / CRDT |
+
+```mermaid
+flowchart TB
+  subgraph sl [Single-leader]
+    L[(L)] --> S1[(S)]
+    L --> S2[(S)]
+  end
+  subgraph ml [Multi-leader]
+    A[(A)] <--> B[(B)]
+  end
+  subgraph ll [Leaderless]
+    N1[(N)] --- N2[(N)]
+    N2 --- N3[(N)]
+    N3 --- N1
+  end
+```
+
+*Three pictures. If you cannot say which one you drew, you drew a rectangle labeled "DB cluster."*
+
+**Working rule:** single-leader until a region must write while another is down **and** you will staff conflict rules. Leaderless needs `N`, `W`, `R` on the sketch. A replica that can be promoted without fencing is a split brain.
+
+#### Synchronous vs Asynchronous Replication
+
+**Synchronous:** the leader does not ack the client until a replica (or a quorum) has the WAL. RPO aims at zero for that replica; latency includes the extra fsync and the network. [PostgreSQL synchronous_commit](https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-SYNCHRONOUS-COMMIT), [MySQL semi-sync](https://dev.mysql.com/doc/refman/en/replication-semisync.html), [Amazon Aurora](https://aws.amazon.com/rds/aurora/) storage quorum.
+
+**Asynchronous:** the leader acks, the replica catches up. Faster; replica lag is RPO. A failover that promotes a lagging replica **loses** the tail of the log. That is the Disaster Recovery sentence from Large-Scale Systems, now attached to a product knob.
+
+**Semi-sync:** ack when *at least one* replica has received (not necessarily applied) the event. A middle knob. Still not "all replicas, all regions."
+
+| Mode | Client wait | RPO on failover | Use |
+| --- | --- | --- | --- |
+| Async | Leader fsync only | Lag window | Read replicas, analytics, another region with a backup story |
+| Sync | Leader + replica | ~0 to that replica | Money, inventory, anything you cannot replay |
+| Quorum | `W` of `N` | 0 if the new quorum overlaps | Leaderless / Aurora storage |
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant L as Leader
+  participant R as Replica
+  C->>L: WRITE
+  alt synchronous
+    L->>R: WAL
+    R-->>L: flushed
+    L-->>C: ack
+  else asynchronous
+    L-->>C: ack
+    L->>R: WAL later
+  end
+```
+
+*Sync puts the replica on the user's latency budget. Async puts it on the RPO budget. PACELC's "else latency vs consistency" is this diagram.*
+
+**Working rule:** money and inventory sync (or a quorum) inside the AZ/region you fail into. Cross-region is usually async plus an RPO you can say out loud. A "Multi-AZ" checkbox you cannot explain is not a durability design.
+
+### Sharding, Partitioning, and Federation
+
+One primary will run out of writes, connections, or disk. **Partitioning** splits data **inside** one database (native table partitions). **Sharding** splits data **across** databases or nodes (each shard is its own primary). **Federation** splits by **type** (users DB, orders DB) rather than by key — a service boundary with extra latency.
+
+[PostgreSQL table partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html) is not sharding: one instance, cheaper vacuums and partition prune. **[Citus](https://www.citusdata.com/)** distributes [PostgreSQL](https://www.postgresql.org/). **[Vitess](https://vitess.io/)** shards [MySQL](https://www.mysql.com/) (what [PlanetScale](https://planetscale.com/) runs). [CockroachDB](https://www.cockroachlabs.com/) / [Google Cloud Spanner](https://cloud.google.com/spanner) range-shard for you. [Apache Cassandra](https://cassandra.apache.org/) and [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) shard on the partition key from day one.
+
+```mermaid
+flowchart TB
+  app[App / router]
+  subgraph shards [Shards]
+    s0[(shard 0)]
+    s1[(shard 1)]
+    s2[(shard 2)]
+  end
+  app --> s0
+  app --> s1
+  app --> s2
+```
+
+*A router ([Vitess](https://vitess.io/) VTGate, app logic, [CockroachDB](https://www.cockroachlabs.com/) gateway) sends each key to one primary. Cross-shard joins are now distributed transactions. Avoid them.*
+
+**Connection pooling** is not sharding. **[PgBouncer](https://www.pgbouncer.org/)**, **[Amazon RDS Proxy](https://aws.amazon.com/rds/proxy/)**, **[ProxySQL](https://proxysql.com/)** sit in front so 5 000 app workers do not open 5 000 backends. Pool when `max_connections` is the fire. Shard when **data or writes** no longer fit.
+
+**Working rule:** partition inside one node first, read-replicas second, shard when the **write** path or the **data size** demands it. Federation is a service cut, not a scale strategy. Pooling is a connection strategy.
+
+#### Shard Keys That Age Well
+
+The shard key is the design. Everything else is plumbing.
+
+| Key | What happens | Age |
+| --- | --- | --- |
+| `user_id` / `tenant_id` | Even if users are even; one celebrity / one huge tenant is a hot shard | Usually good; watch whales |
+| Auto-increment `id` or `created_at` | All inserts land on the newest shard / the right edge of a range | Ages badly; a hotspot that moves |
+| Hash of `id` | Even writes | Range queries and "the next 20 rows" now scatter |
+| Geo / `device_id` | Locality | Load follows the sun or a factory |
+| Random | Even | You can never query "all orders for user" without a lookup table |
+
+**Hot partitions** are how [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) throttles one key while the rest of the table is bored, and how a celebrity timeline melts a shard. Mitigations: cache the hot key (next chapter), split the key (`user_id#bucket`), queue the write, or isolate the whale onto its own shard.
+
+```mermaid
+flowchart LR
+  writes[Inserts with created_at]
+  newest[(newest range shard)]
+  others[(older shards idle)]
+  writes --> newest
+  others -.-> newest
+```
+
+*Monotonic keys concentrate writes on one node. Hash if you need even writes; keep a directory if you still need "all rows for X."*
+
+**Working rule:** pick a key that spreads **writes**, not just rows. If the key is time or an auto-increment, you have designed a hotspot. If one tenant is 40% of traffic, that tenant **is** a shard key of its own.
+
+#### Resharding and Directory-Based Routing
+
+Shards fill. Keys were wrong. You will move data.
+
+| Routing | How a request finds a shard | Reshard |
+| --- | --- | --- |
+| Hash | `hash(key) % N` | `% N` changes → almost every key moves. Consistent hashing (later chapter) moves `1/N`. |
+| Range | `A–F` on shard 1 | Split a range; only that range moves. Hot ranges still hurt. |
+| Directory | Lookup table: key → shard | Move a key by updating the directory. Double-write during the move. The directory is now a SPOF unless you replicate it. |
+
+**[Vitess](https://vitess.io/)** resharding and **[Amazon DynamoDB](https://aws.amazon.com/dynamodb/)** partition splits are the product versions of range/hash moves. A **directory** (a small [PostgreSQL](https://www.postgresql.org/) or [etcd](https://etcd.io/) map, or a gossip table) is how custom routers stay honest. Cache the directory; version it; do not let two writers disagree on where `user 9` lives.
+
+```mermaid
+sequenceDiagram
+  participant App
+  participant Dir as Directory
+  participant S1 as Shard 1
+  participant S2 as Shard 2
+  App->>Dir: where is user 9?
+  Dir-->>App: shard 1
+  Note over S1,S2: reshard: copy user 9 to shard 2, dual-write
+  App->>Dir: where is user 9?
+  Dir-->>App: shard 2
+```
+
+*Directory-based routing. The dangerous window is dual-write plus a stale cache of the directory. Version the mapping; fence the old shard.*
+
+**Working rule:** hash for evenness, range for locality, directory when keys must **move independently**. Plan the reshard **before** the disk is at 90%. A hash modulo you cannot change is a hostage situation.
+
+### When to Pick SQL vs NoSQL
+
+This is the same comparison as **SQL vs NoSQL**, now as a **decision procedure** you can run on a sketch. Do not start from the logo.
+
+1. **What is the system of record?** If you cannot say, stop. Everything else is a copy.
+2. **Can you list the queries?** Unknown joins, reports, admin tools → [PostgreSQL](https://www.postgresql.org/). One primary-key lookup at huge QPS → [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) or a KV. Document-shaped aggregates you always fetch together → [MongoDB](https://www.mongodb.com/). Time-series / append by a row key → [Apache Cassandra](https://cassandra.apache.org/) / [ScyllaDB](https://www.scylladb.com/). Neighborhood walks as the product → [Neo4j](https://neo4j.com/) / [Amazon Neptune](https://aws.amazon.com/neptune/).
+3. **Do writes need local ACID?** Money, inventory, uniqueness → SQL (or a NewSQL that you will operate). "Lost update is OK if we repair" → specialist + saga.
+4. **Where do blobs go?** Never in the row store. [Amazon S3](https://aws.amazon.com/s3/) / [Google Cloud Storage](https://cloud.google.com/storage) / [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs); id in the database.
+5. **How does it grow?** Read-heavy: replicas. Write-heavy or data > one node: a shard key you can defend. Multi-region **writes**: conflict rules or [Google Cloud Spanner](https://cloud.google.com/spanner) / [CockroachDB](https://www.cockroachlabs.com/) — not two async primaries you hope do not collide.
+6. **What is derived?** Search, feed, cache, warehouse. Those are later chapters. Do not replace the record with [Elasticsearch](https://www.elastic.co/elasticsearch) or [Redis](https://redis.io/).
+
+```mermaid
+flowchart TB
+  rec{System of record?}
+  rec -->|blobs| s3[Object storage]
+  rec -->|relations, unknown queries, ACID| sql[PostgreSQL]
+  rec -->|known key, huge scale| nosql[KV / wide-column / document]
+  rec -->|graph walks are the product| graph[Graph store]
+  sql --> grow{Growth}
+  nosql --> grow
+  grow -->|reads| replica[Read replicas]
+  grow -->|writes or size| shard[Shard key]
+  grow -->|multi-region writes| nsql[NewSQL or conflict rules]
+```
+
+*Record first, model second, growth third. Caching and Content Delivery Networks is the derived-copy chapter that follows.*
+
+**[PostgreSQL](https://www.postgresql.org/)** remains the default box. Add a specialist when a named query and a named scale number beat the operational cost of a second store. Two stores mean two failure modes and a sync story (outbox, saga, nightly rebuild).
+
+**Working rule:** SQL for the record unless a named access path and a named scale number forbid it. Blobs out. Derived stores extra. If you cannot explain the shard key and the replica lag, you are not ready to leave one primary.
+
+### Summary: Databases and Storage
+
+A database is a **durability and query contract**, not a logo. Put **metadata in a row store**, **bytes in object storage** ([Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)), and **derived copies** somewhere you can rebuild. **Block vs file vs object** are different APIs; RAID survives a disk, NAS shares files, [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) / objects survive a machine — none of them is a second primary. **SQL** ([PostgreSQL](https://www.postgresql.org/), [MySQL](https://www.mysql.com/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/)) is the default record: indexes you can [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html), no N+1, normalize the record and denormalize copies. **NoSQL** is a model ([Amazon DynamoDB](https://aws.amazon.com/dynamodb/), [MongoDB](https://www.mongodb.com/), [Apache Cassandra](https://cassandra.apache.org/), [Neo4j](https://neo4j.com/)), not a personality. **ACID** is local; **BASE** is a repair story; **CAP** is a partition; **PACELC** ([Abadi](https://doi.org/10.1109/MC.2012.33)) is the latency-vs-consistency knob you actually turn. **Transactions** stay on one database; across systems use a **saga** or an **outbox** ([Debezium](https://debezium.io/)), not 2PC over HTTP. **Replication** names a topology (single-leader, multi-leader, leaderless) and **sync vs async** (RPO vs latency). **Sharding** needs a key that ages, a router ([Vitess](https://vitess.io/), [Citus](https://www.citusdata.com/)), and a reshard plan; pooling ([PgBouncer](https://www.pgbouncer.org/)) is not sharding. Draw the stores in [Excalidraw](https://excalidraw.com/). Next is **Caching and Content Delivery Networks**.

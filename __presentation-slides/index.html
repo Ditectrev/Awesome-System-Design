@@ -11,6 +11,15 @@
   <style>
     .fragment.blur { filter: blur(1rem); }
     .fragment.blur.visible { filter: none; }
+    .reveal .mermaid {
+      background: #fff;
+      padding: 0.4em;
+      font-size: 0.5em;
+    }
+    .reveal .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
   </style>
 </head>
 <body>
@@ -1886,6 +1895,611 @@
 * Rate limits: key, layer, `429` + `Retry-After` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Errors: [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) + stable code; additive or sunset <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Draw it in [Excalidraw](https://excalidraw.com/). Next: Databases and Storage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Databases and Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Databases and Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The contract reads and writes **state** <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No [CodeSandboxes](https://codesandbox.io/) — draw the store in [Excalidraw](https://excalidraw.com/) first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name a product only when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter: Caching and Content Delivery Networks <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Databases and Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  api[API]
+  meta[(Row store)]
+  blob[Object storage]
+  cache[Cache]
+  replica[(Replica)]
+  api --> meta
+  api --> blob
+  api -.-> cache
+  meta --> replica
+```
+
+*Metadata, bytes, and derived copies are three jobs. Do not draw one cylinder labeled "storage."*
+
+---
+
+### What a Database Is in System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What a Database Is in System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* System of record vs derived copy <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Job, access path, durability, consistency, growth, failure <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Redis](https://redis.io/) with a TTL is derived until you say otherwise <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A logo is not a database design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What a Database Is in System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+**[PostgreSQL](https://www.postgresql.org/)** — default OLTP in this book
+
+* Rows, schemas, transactions, indexes, SQL <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hosted: [Amazon RDS](https://aws.amazon.com/rds/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Cloud SQL](https://cloud.google.com/sql) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a blob store, not a cache, not a warehouse <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Write "system of record" or "derived" on every store box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Storage Layers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Storage Layers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  db[Database process]
+  file[File / POSIX]
+  block[Block volume]
+  object[Object store]
+  db --> file
+  db --> block
+  db -.-> object
+```
+
+*The database talks POSIX or a block device. Object storage is HTTP, not a disk.*
+
+---
+
+#### File, Block, and Object Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### File, Block, and Object Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Layer | Unit | Use |
+| --- | --- | --- |
+| Block | Sectors | DB data dir, WAL — [Amazon EBS](https://aws.amazon.com/ebs/), [Persistent Disk](https://cloud.google.com/persistent-disk), [Azure Disk](https://azure.microsoft.com/products/storage/disks) |
+| File | POSIX path | Shared files — NFS, [Amazon EFS](https://aws.amazon.com/efs/), [Filestore](https://cloud.google.com/filestore), [Azure Files](https://azure.microsoft.com/products/storage/files) |
+| Object | Key + blob | Media, backups — [Amazon S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage), [Azure Blob](https://azure.microsoft.com/products/storage/blobs), [MinIO](https://min.io/), [Ceph](https://ceph.io/en/) |
+
+---
+
+#### File, Block, and Object Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Photos in object storage; ids in a row store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon EBS](https://aws.amazon.com/ebs/) snapshots are backups, not replicas <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Multi-attach without a lock manager corrupts a data directory <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [s3fs-fuse](https://github.com/s3fs-fuse/s3fs-fuse) is a demo, not an architecture <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If the sketch has one cylinder for "storage," you have not designed storage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### RAID, NAS, and HDFS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### RAID, NAS, and HDFS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  raid[RAID: one box]
+  nas[NAS / SAN: a hop]
+  hdfs[HDFS / objects: many machines]
+```
+
+*RAID survives a disk. NAS shares files. [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) / objects survive a machine. None is a second primary.*
+
+---
+
+#### RAID, NAS, and HDFS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* RAID 1 ≠ a replica in another AZ <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* NAS: NFS / [Amazon EFS](https://aws.amazon.com/efs/) / a [NetApp](https://www.netapp.com/) filer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Two writers on one LUN = split brain <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) ([Apache Hadoop](https://hadoop.apache.org/)): large sequential files, not OLTP <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Today the same job is often [Amazon S3](https://aws.amazon.com/s3/) — lakes wait for a later chapter <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### SQL Databases <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### SQL Databases <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Relations, schema, SQL, optimizer, local ACID <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Default: [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Also: [MySQL](https://www.mysql.com/) / [MariaDB](https://mariadb.org/) ([InnoDB](https://dev.mysql.com/doc/refman/en/innodb-storage-engine.html)), [SQLite](https://www.sqlite.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Enterprise already owns it: [SQL Server](https://www.microsoft.com/sql-server), [Oracle Database](https://www.oracle.com/database/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### SQL Databases <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Hosted: [Amazon RDS](https://aws.amazon.com/rds/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Cloud SQL](https://cloud.google.com/sql), [Azure SQL](https://azure.microsoft.com/products/azure-sql/database/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* NewSQL: [CockroachDB](https://www.cockroachlabs.com/), [Spanner](https://cloud.google.com/spanner), [YugabyteDB](https://www.yugabyte.com/), [TiDB](https://www.pingcap.com/tidb/), [PlanetScale](https://planetscale.com/) / [Vitess](https://vitess.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Aurora](https://aws.amazon.com/rds/aurora/): one writer; not [Spanner](https://cloud.google.com/spanner) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Start from [PostgreSQL](https://www.postgresql.org/) until a measured reason says otherwise <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Indexes, Materialized Views, and the N+1 Problem <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Indexes, Materialized Views, and the N+1 Problem <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Index = derived structure; every index taxes writes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Prove it: [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html), [pg_stat_statements](https://www.postgresql.org/docs/current/pgstatstatements.html) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* GUIs: [pgAdmin](https://www.pgadmin.org/), [DBeaver](https://dbeaver.io/) — they do not replace the plan <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Materialized view = stored query; stale by construction <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Indexes, Materialized Views, and the N+1 Problem <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  n1[1 query for parents]
+  n2[N queries for children]
+  n1 --> n2
+  b1[1 query for parents]
+  b2[1 batched IN / join]
+  b1 --> b2
+```
+
+*N+1 is a round-trip bug. Fix with a join, an `IN` list, or [DataLoader](https://github.com/graphql/dataloader) — not a bigger instance.*
+
+---
+
+#### Normalization and Denormalization <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Normalization and Denormalization <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | Normalized | Denormalized |
+| --- | --- | --- |
+| Writes | One place | Many copies; they drift |
+| Reads | Joins | Shaped like the screen |
+| Use | System of record | Read models, feeds, caches |
+
+*Denormalize a measured read path. Do not denormalize the ledger.*
+
+---
+
+#### Normalization and Denormalization <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* 3NF is the working target for the record <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Copy on purpose, with a refresh story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* CQRS (later chapter) is this split with a proper name <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If you cannot name who updates the copy, you have a bug <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### NoSQL Databases <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### NoSQL Databases <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Umbrella, not a product <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Pick the **model** from the query, then the product <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* "NoSQL for scale" without a model is how you join in the application forever <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Key-Value, Document, Wide-Column, and Graph <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Key-Value, Document, Wide-Column, and Graph <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Model | Cheap path | Products |
+| --- | --- | --- |
+| Key-value | `GET` / `PUT` key | [DynamoDB](https://aws.amazon.com/dynamodb/), [Redis](https://redis.io/), [etcd](https://etcd.io/), [Memcached](https://memcached.org/) |
+| Document | Fetch by id | [MongoDB](https://www.mongodb.com/), [DocumentDB](https://aws.amazon.com/documentdb/), [Couchbase](https://www.couchbase.com/), [Firestore](https://firebase.google.com/docs/firestore) |
+| Wide-column | Partition + clustering key | [Cassandra](https://cassandra.apache.org/), [ScyllaDB](https://www.scylladb.com/), [HBase](https://hbase.apache.org/), [Bigtable](https://cloud.google.com/bigtable) |
+| Graph | Neighborhood walk | [Neo4j](https://neo4j.com/), [Neptune](https://aws.amazon.com/neptune/), [JanusGraph](https://janusgraph.org/) |
+
+---
+
+#### Key-Value, Document, Wide-Column, and Graph <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  kv[Key-value]
+  doc[Document]
+  wc[Wide-column]
+  g[Graph]
+```
+
+*Four cheap paths. Two equally important paths → two stores, or SQL.*
+
+---
+
+#### Key-Value, Document, Wide-Column, and Graph <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [DynamoDB](https://aws.amazon.com/dynamodb/): name the partition key; `Scan` is a bill <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [MongoDB](https://www.mongodb.com/): document *is* the API shape; unbounded arrays will not split <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Cassandra](https://cassandra.apache.org/) / [ScyllaDB](https://www.scylladb.com/): `ALLOW FILTERING` is a confession <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Neo4j](https://neo4j.com/): when the product *is* the walk <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Redis](https://redis.io/) as primary ≠ [PostgreSQL](https://www.postgresql.org/) WAL; [etcd](https://etcd.io/) is coordination <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### SQL vs NoSQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### SQL vs NoSQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | SQL | NoSQL |
+| --- | --- | --- |
+| Schema | Declared | Implicit — still real in the app |
+| Query | Ad-hoc joins | Primary key / declared indexes |
+| Transactions | Default local ACID | Varies |
+| Write scale | Vertical, then shard | Often partitioned from day one |
+| Fit | Unknown queries, integrity | Known path, specialist model |
+
+---
+
+### SQL vs NoSQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  q{Can you name the queries?}
+  q -->|No, and they join| sql[SQL]
+  q -->|Yes, one key| kv[Key-value]
+  q -->|Yes, a document| doc[Document]
+  q -->|Yes, row key plus time| wc[Wide-column]
+  q -->|Yes, a neighborhood| graph[Graph]
+```
+
+*NewSQL ([CockroachDB](https://www.cockroachlabs.com/), [Spanner](https://cloud.google.com/spanner), [YugabyteDB](https://www.yugabyte.com/), [TiDB](https://www.pingcap.com/tidb/)) is SQL + multi-region writes you will staff — not a default.*
+
+---
+
+### ACID, BASE, CAP, and PACELC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### ACID, BASE, CAP, and PACELC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* **ACID** — local transaction ([PostgreSQL transactions](https://www.postgresql.org/docs/current/tutorial-transactions.html)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* **BASE** — stale allowed; here is repair ([Pritchett, ACM Queue](https://queue.acm.org/detail.cfm?id=1394128)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* **CAP** — in a **partition**, C vs A ([Gilbert and Lynch](https://www.comp.nus.edu.sg/~gilbert/pubs/BrewersConjecture-SigAct.pdf); [Brewer, 12 years later](https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* **PACELC** — else latency vs consistency ([Abadi](https://doi.org/10.1109/MC.2012.33)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### ACID, BASE, CAP, and PACELC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  p{Partition?}
+  p -->|yes| ac[Availability vs Consistency]
+  p -->|Else| lc[Latency vs Consistency]
+```
+
+*CAP is the failure branch. PACELC adds the happy path — sync vs async replication. Reciting "we are AP" without partition behavior is trivia.*
+
+---
+
+### Transactions <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Transactions <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Local = one database <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Distributed = two or more systems — ACID is not free <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A transaction that calls another HTTP API is not local anymore <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Local Transactions <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Local Transactions <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Level | Still possible | Default-ish |
+| --- | --- | --- |
+| Read committed | non-repeatable, phantoms | [PostgreSQL](https://www.postgresql.org/) |
+| Repeatable read | phantoms (engine-dependent) | [InnoDB](https://dev.mysql.com/doc/refman/en/innodb-storage-engine.html) |
+| Serializable | — | Safer; more retries |
+
+*[Isolation levels](https://www.postgresql.org/docs/current/transaction-iso.html) are not durability. Name both.*
+
+---
+
+#### Local Transactions <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [MVCC](https://www.postgresql.org/docs/current/mvcc.html): readers do not block writers; vacuum is the tax <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Optimistic: version column / `If-Match`; retry on 0 rows <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Pessimistic: `SELECT … FOR UPDATE` — short, or deadlock <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Default read committed; bump isolation where money or inventory hurts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Distributed Transactions, Two-Phase Commit, and Sagas <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Distributed Transactions, Two-Phase Commit, and Sagas <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant C as Coordinator
+  participant X as Store X
+  participant Y as Store Y
+  C->>X: PREPARE
+  C->>Y: PREPARE
+  X-->>C: yes
+  Y-->>C: yes
+  C->>X: COMMIT
+  C->>Y: COMMIT
+```
+
+*2PC ([`PREPARE TRANSACTION`](https://www.postgresql.org/docs/current/sql-prepare-transaction.html)). The sad path: voted yes, coordinator gone, locks held. Not a microservice architecture.*
+
+---
+
+#### Distributed Transactions, Two-Phase Commit, and Sagas <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Saga: local txns + compensations ([Garcia-Molina and Salem](https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Orchestration: [AWS Step Functions](https://aws.amazon.com/step-functions/), [Temporal](https://temporal.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Choreography: events on [Apache Kafka](https://kafka.apache.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Outbox + [Debezium](https://debezium.io/) — not dual-write <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Two databases → saga or outbox, not 2PC over HTTP <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Replication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Replication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  client[Client]
+  leader[(Leader)]
+  r1[(Replica)]
+  r2[(Replica)]
+  client --> leader
+  leader --> r1
+  leader --> r2
+```
+
+*Copies of the same keyspace. Not sharding. Draw who may write, and how stale a read may be.*
+
+---
+
+#### Single-Leader, Multi-Leader, and Leaderless <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Single-Leader, Multi-Leader, and Leaderless <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Topology | Who writes | Conflict |
+| --- | --- | --- |
+| Single-leader | One primary | Stale reads; [PostgreSQL streaming](https://www.postgresql.org/docs/current/warm-standby.html), [RDS](https://aws.amazon.com/rds/) Multi-AZ, [MongoDB replica sets](https://www.mongodb.com/docs/manual/replication/) |
+| Multi-leader | Several | Merge rules — [CouchDB](https://couchdb.apache.org/), [logical replication](https://www.postgresql.org/docs/current/logical-replication.html) |
+| Leaderless | Quorum `N,W,R` | Read repair — [Cassandra](https://cassandra.apache.org/), [DynamoDB](https://aws.amazon.com/dynamodb/) |
+
+---
+
+#### Single-Leader, Multi-Leader, and Leaderless <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  L[(L)] --> S[(S)]
+  A[(A)] <--> B[(B)]
+  N1[(N)] --- N2[(N)]
+```
+
+*Failover needs fencing ([Patroni](https://patroni.readthedocs.io/)). `W=1` is easy to lose. A rectangle labeled "DB cluster" is not a topology.*
+
+---
+
+#### Synchronous vs Asynchronous Replication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Synchronous vs Asynchronous Replication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Mode | Client wait | RPO on failover |
+| --- | --- | --- |
+| Async | Leader fsync | Lag window |
+| Sync | Leader + replica | ~0 to that replica |
+| Quorum | `W` of `N` | 0 if quorums overlap |
+
+*[synchronous_commit](https://www.postgresql.org/docs/current/runtime-config-wal.html#GUC-SYNCHRONOUS-COMMIT), [MySQL semi-sync](https://dev.mysql.com/doc/refman/en/replication-semisync.html), [Aurora](https://aws.amazon.com/rds/aurora/) storage quorum.*
+
+---
+
+#### Synchronous vs Asynchronous Replication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant L as Leader
+  participant R as Replica
+  C->>L: WRITE
+  alt sync
+    L->>R: WAL
+    R-->>L: flushed
+    L-->>C: ack
+  else async
+    L-->>C: ack
+    L->>R: WAL later
+  end
+```
+
+*Sync is on the latency budget. Async is on the RPO budget. That is PACELC's "else."*
+
+---
+
+### Sharding, Partitioning, and Federation <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Sharding, Partitioning, and Federation <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Partition: split **inside** one database <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Shard: split **across** primaries ([Citus](https://www.citusdata.com/), [Vitess](https://vitess.io/), [Spanner](https://cloud.google.com/spanner) ranges) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Federation: split by **type** (users DB, orders DB) — a service cut <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Pooling is not sharding: [PgBouncer](https://www.pgbouncer.org/), [RDS Proxy](https://aws.amazon.com/rds/proxy/), [ProxySQL](https://proxysql.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Sharding, Partitioning, and Federation <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  app[App / router]
+  s0[(shard 0)]
+  s1[(shard 1)]
+  s2[(shard 2)]
+  app --> s0
+  app --> s1
+  app --> s2
+```
+
+*Cross-shard joins are distributed transactions. Avoid them. Partition inside one node first; replica reads second; shard writes last.*
+
+---
+
+#### Shard Keys That Age Well <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Shard Keys That Age Well <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Key | Age |
+| --- | --- |
+| `user_id` / `tenant_id` | Usually good; watch whales |
+| Auto-increment / `created_at` | Hotspot on the newest shard |
+| Hash of `id` | Even writes; range queries scatter |
+| Random | Even; "all orders for user" needs a directory |
+
+---
+
+#### Shard Keys That Age Well <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  writes[Inserts with created_at]
+  newest[(newest range shard)]
+  writes --> newest
+```
+
+*Monotonic keys concentrate writes. Hot keys: cache, split (`user_id#bucket`), or isolate the whale. The shard key **is** the design.*
+
+---
+
+#### Resharding and Directory-Based Routing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Resharding and Directory-Based Routing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Routing | Reshard |
+| --- | --- |
+| Hash `% N` | Almost every key moves; consistent hashing (later) moves `1/N` |
+| Range | Split a range; hot ranges still hurt |
+| Directory | Move a key by updating the map; directory is a SPOF unless replicated |
+
+*[Vitess](https://vitess.io/) resharding, [DynamoDB](https://aws.amazon.com/dynamodb/) splits. Cache + version the directory; fence the old shard.*
+
+---
+
+#### Resharding and Directory-Based Routing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Plan the reshard **before** the disk is at 90% <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Dual-write during the move; stale directory cache is the dangerous window <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A hash modulo you cannot change is a hostage situation <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Directory in [PostgreSQL](https://www.postgresql.org/) or [etcd](https://etcd.io/) — replicate it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### When to Pick SQL vs NoSQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### When to Pick SQL vs NoSQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  rec{System of record?}
+  rec -->|blobs| s3[Object storage]
+  rec -->|relations, unknown queries, ACID| sql[PostgreSQL]
+  rec -->|known key, huge scale| nosql[Specialist]
+  rec -->|graph walks| graph[Graph store]
+```
+
+*Record first, model second, growth third. [PostgreSQL](https://www.postgresql.org/) remains the default box.*
+
+---
+
+### When to Pick SQL vs NoSQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+1. Name the system of record <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+2. List the queries — unknown joins → SQL; one key → KV <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+3. Local ACID for money / inventory / uniqueness <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+4. Blobs out: [S3](https://aws.amazon.com/s3/) / [GCS](https://cloud.google.com/storage) / [Azure Blob](https://azure.microsoft.com/products/storage/blobs) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+5. Growth: replicas, then a shard key, then conflict rules or NewSQL <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+6. Derived stays derived — not [Elasticsearch](https://www.elastic.co/elasticsearch) or [Redis](https://redis.io/) as the record <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Databases and Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Databases and Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Durability and query contract — not a logo <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Metadata in a row store; bytes in object storage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* SQL default ([PostgreSQL](https://www.postgresql.org/), [Aurora](https://aws.amazon.com/rds/aurora/)); [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html); no N+1 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* NoSQL is a model ([DynamoDB](https://aws.amazon.com/dynamodb/), [MongoDB](https://www.mongodb.com/), [Cassandra](https://cassandra.apache.org/), [Neo4j](https://neo4j.com/)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* ACID local; CAP is a partition; PACELC is the daily knob <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Databases and Storage <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Two databases → saga or outbox ([Debezium](https://debezium.io/)), not 2PC over HTTP <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Replication: topology + sync vs async (RPO) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Shard key that ages; router ([Vitess](https://vitess.io/), [Citus](https://www.citusdata.com/)); pooling is not sharding <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw it in [Excalidraw](https://excalidraw.com/). Next: Caching and Content Delivery Networks <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
         </textarea>
 
       </section>
@@ -1895,11 +2509,23 @@
   <script src="plugin/notes/notes.js"></script>
   <script src="plugin/markdown/markdown.js"></script>
   <script src="plugin/highlight/highlight.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>
     Reveal.initialize({
       hash: true,
       slideNumber: 'c/t',
       plugins: [RevealMarkdown, RevealHighlight, RevealNotes]
+    }).then(() => {
+      if (!window.mermaid) return;
+      document.querySelectorAll('pre code.language-mermaid, pre code.mermaid').forEach((code) => {
+        const pre = code.parentElement;
+        const div = document.createElement('div');
+        div.className = 'mermaid';
+        div.textContent = code.textContent;
+        pre.replaceWith(div);
+      });
+      mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'loose' });
+      mermaid.run();
     });
   </script>
 </body>
