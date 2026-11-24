@@ -2685,3 +2685,534 @@ flowchart TB
 ### Summary: Databases and Storage
 
 A database is a **durability and query contract**, not a logo. Put **metadata in a row store**, **bytes in object storage** ([Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)), and **derived copies** somewhere you can rebuild. **Block vs file vs object** are different APIs; RAID survives a disk, NAS shares files, [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) / objects survive a machine — none of them is a second primary. **SQL** ([PostgreSQL](https://www.postgresql.org/), [MySQL](https://www.mysql.com/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/)) is the default record: indexes you can [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html), no N+1, normalize the record and denormalize copies. **NoSQL** is a model ([Amazon DynamoDB](https://aws.amazon.com/dynamodb/), [MongoDB](https://www.mongodb.com/), [Apache Cassandra](https://cassandra.apache.org/), [Neo4j](https://neo4j.com/)), not a personality. **ACID** is local; **BASE** is a repair story; **CAP** is a partition; **PACELC** ([Abadi](https://doi.org/10.1109/MC.2012.33)) is the latency-vs-consistency knob you actually turn. **Transactions** stay on one database; across systems use a **saga** or an **outbox** ([Debezium](https://debezium.io/)), not 2PC over HTTP. **Replication** names a topology (single-leader, multi-leader, leaderless) and **sync vs async** (RPO vs latency). **Sharding** needs a key that ages, a router ([Vitess](https://vitess.io/), [Citus](https://www.citusdata.com/)), and a reshard plan; pooling ([PgBouncer](https://www.pgbouncer.org/)) is not sharding. Draw the stores in [Excalidraw](https://excalidraw.com/). Next is **Caching and Content Delivery Networks**.
+
+## Caching and Content Delivery Networks
+
+Databases and Storage is the **system of record**. This chapter is the **derived copies** that sit in front of it: a byte you already paid to compute, stored closer to the next reader, with a staleness you can say out loud. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the copies in [Excalidraw](https://excalidraw.com/) first — what is cached, where, for how long, and what happens on a miss — then naming a product ([Redis](https://redis.io/), [Memcached](https://memcached.org/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/), [Cloudflare](https://www.cloudflare.com/)) only when the choice matters. The next chapter is Message Queues, Streams, and Real-Time Communication — the paths that do not wait on the request.
+
+A cache is not a smaller database. It is a **performance and cost contract** you can operate when the origin is slow, a key is hot, and a deploy ships a new HTML file the edge still loves. Miss the contract and [Redis](https://redis.io/) becomes the only copy of a payment, a thundering herd melts [PostgreSQL](https://www.postgresql.org/) after a flush, and a CDN serves yesterday's price as today's.
+
+```mermaid
+flowchart LR
+  client[Client]
+  cdn[CDN / edge]
+  app[App]
+  local[Process cache]
+  redis[(Distributed cache)]
+  db[(System of record)]
+  client --> cdn
+  cdn --> app
+  app --> local
+  app --> redis
+  redis --> db
+```
+
+*Every arrow to the right is slower and more expensive. Every arrow to the left is a copy that can be stale. Draw those boxes in [Excalidraw](https://excalidraw.com/) before you pick [Amazon ElastiCache](https://aws.amazon.com/elasticache/) or [Amazon CloudFront](https://aws.amazon.com/cloudfront/).*
+
+### Why Caching Shows Up in Almost Every Design
+
+Reads dominate most products. Computing a feed, a thumbnail, a compiled CSS bundle, or a session blob more than once is a tax you can skip if the next caller will accept a copy. Caching shows up because **physics and money** do, not because a checklist said "add [Redis](https://redis.io/)."
+
+Three pressures make a cache the right box:
+
+1. **Distance.** Light in fiber is about 1 ms per 100 km of great-circle, plus routing. A reader in Sydney waiting on a disk in Virginia is waiting on the planet. Large-Scale Systems already gave you the numbers: L1 cache ~1 ns, DRAM ~100 ns, SSD ~150 µs, a regional round trip ~1–2 ms, a transcontinental round trip ~100–200 ms. A CDN PoP is how you buy the 1 ms instead of the 150 ms for a public byte.
+2. **Work.** A JOIN, a template render, a thumbnail, a JSON blob you already serialized. The second caller should not pay that CPU if the result is still valid. An application cache ([Caffeine](https://github.com/ben-manes/caffeine), [Redis](https://redis.io/)) is how you buy the GET instead of the JOIN.
+3. **Fan-in.** One celebrity key, one homepage, one product that just went on the front page. The origin cannot take 100 000 identical reads. A cache (and, for public bytes, a CDN) turns that into one fill plus many hits.
+
+```mermaid
+flowchart TB
+  subgraph cost [What a miss pays]
+    cpu[CPU / JOIN / render]
+    disk[Disk / SSD]
+    wan[WAN round trip]
+  end
+  subgraph save [What a hit skips]
+    hit[GET from memory or edge]
+  end
+  cost --> miss[Miss: origin]
+  save --> ok[Hit: copy]
+```
+
+*A miss is a full origin. A hit is a copy. If you cannot name which of distance, work, or fan-in you are buying, you are decorating the sketch with a cylinder.*
+
+**What caching is not:**
+
+- Not durability. [Redis](https://redis.io/) AOF / RDB and [Amazon MemoryDB](https://aws.amazon.com/memorydb/) exist; they still are not [PostgreSQL](https://www.postgresql.org/) WAL shipping. If the only copy of a write is in the cache, you designed a cache as a database (Databases and Storage already forbade that).
+- Not a correctness shortcut. A stale cart total, a stale permission bit, a stale price — each needs a sentence: "stale for 30 seconds is OK" or "never cache this."
+- Not free. Every cache is memory, invalidation, and a failure mode. A 99% hit ratio on the wrong key still misses the one query that is the incident.
+
+**[Redis](https://redis.io/)** (with **[Amazon ElastiCache](https://aws.amazon.com/elasticache/)**, **[Google Cloud Memorystore](https://cloud.google.com/memorystore)**, **[Azure Managed Redis](https://azure.microsoft.com/products/managed-redis)** / **[Azure Cache for Redis](https://azure.microsoft.com/products/cache)**, or **[Valkey](https://valkey.io/)** when you want the open fork)
+
+- **Primary function:** in-memory data structure server: strings, hashes, lists, sets, sorted sets, streams; optional TTL; optional persistence. Docs: [Redis documentation](https://redis.io/docs/).
+- **When we send you here:** the default **application / session / derived-read** cache in this book. Also the lock, the rate-limit counter, the leaderboard — those are data structures, not "we cached SQL."
+- **What it is not:** not the system of record for money. Not a CDN. Not a replacement for an index you refuse to add.
+
+**Working rule:** cache a **read path you have measured**, with a **TTL or invalidation** you can say, and an **origin** that still works if the cache is empty. "We put [Redis](https://redis.io/) in front" without those three is a logo.
+
+### Cache Hits, Misses, and Stampede
+
+A **hit** is a key that was present and still valid. A **miss** is a key that was absent, expired, or evicted — the caller must fill from origin. **Hit ratio** is hits / (hits + misses). It is a **layer** metric: the CDN can be at 95% while [Redis](https://redis.io/) is at 40% on a different keyspace. Quote the layer.
+
+**Cache-aside** (lazy loading) is the default read path in this book: the application looks up the key, on miss loads the origin, then writes the cache. The cache does not know the database. That is a feature (the cache stays simple) and a bug factory (two concurrent misses both hit origin).
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant A as App
+  participant R as Cache
+  participant D as Origin
+  C->>A: GET item 9
+  A->>R: GET item:9
+  alt hit
+    R-->>A: value
+    A-->>C: 200
+  else miss
+    R-->>A: miss
+    A->>D: SELECT
+    D-->>A: row
+    A->>R: SET item:9 TTL
+    A-->>C: 200
+  end
+```
+
+*Cache-aside. The application owns the fill. [Redis](https://redis.io/) `GET` then `SET` with a TTL is this picture. A library that hides the miss still has to do this work.*
+
+A **stampede** (dogpile, thundering herd) is many concurrent misses on the **same** key: a popular key expires, or the cache restarts empty, and N workers all query origin. One homepage, one hot product, one empty [Memcached](https://memcached.org/) after a deploy. Origin CPU and connection pools are the casualty. This is the cache version of the hot partition from Databases and Storage.
+
+```mermaid
+sequenceDiagram
+  participant W1 as Worker 1
+  participant W2 as Worker 2
+  participant WN as Worker N
+  participant R as Cache
+  participant D as Origin
+  W1->>R: GET home
+  W2->>R: GET home
+  WN->>R: GET home
+  R-->>W1: miss
+  R-->>W2: miss
+  R-->>WN: miss
+  W1->>D: render home
+  W2->>D: render home
+  WN->>D: render home
+```
+
+*Stampede. One expiry, N identical origin loads. The cache did its job (it was empty). The fill protocol did not.*
+
+**Stampede controls** — pick at least one, write it on the sketch:
+
+| Control | What it does | Trade-off |
+| --- | --- | --- |
+| Request coalescing / single-flight | One fill in flight per key; waiters share the result ([Go `singleflight`](https://pkg.go.dev/golang.org/x/sync/singleflight), [groupcache](https://github.com/golang/groupcache), [Cloudflare cache](https://developers.cloudflare.com/cache/) collapsed forwarding) | Fill latency is shared; a slow fill stalls everyone |
+| Lock on miss | `SET key:lock NX EX` in [Redis](https://redis.io/); losers serve stale or wait | A lost lock or a crashed holder needs a TTL on the lock |
+| Stale-while-revalidate | Serve expired value, refresh in the background ([RFC 5861](https://www.rfc-editor.org/rfc/rfc5861), [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) `stale-while-revalidate`) | Callers see stale; origin sees one refresh |
+| TTL jitter | Expire at `ttl ± random` so keys do not align | Still a herd if traffic spikes on one key |
+| Probabilistic early expiry | XFetch-style: refresh *before* TTL with probability that rises as remaining TTL shrinks | Extra origin load in exchange for fewer cliffs |
+| Negative caching | Cache "not found" for a short TTL | A create right after a 404 stays invisible until the negative TTL |
+
+```mermaid
+sequenceDiagram
+  participant W1 as Worker 1
+  participant W2 as Worker 2
+  participant R as Cache
+  participant D as Origin
+  W1->>R: GET home
+  R-->>W1: miss
+  W1->>R: SET lock NX
+  W2->>R: GET home
+  R-->>W2: miss
+  W2->>R: SET lock NX
+  R-->>W2: locked
+  W1->>D: render home
+  D-->>W1: html
+  W1->>R: SET home TTL; DEL lock
+  W2->>R: GET home
+  R-->>W2: html
+```
+
+*Coalesced fill. Worker 2 does not query origin. Serve stale if you have it while the lock is held — that is stale-while-revalidate with extra steps.*
+
+**Miss types** you should name, because they debug differently:
+
+- **Cold miss:** key never filled (new object, empty cache, first request after deploy). Warm if the miss is predictable ([Redis](https://redis.io/) `MIGRATE` / restore, CDN prefetch, a boot job).
+- **Capacity miss:** eviction (next section). The working set does not fit. Bigger memory or a better key, not a different eviction slogan.
+- **Freshness miss:** TTL or explicit invalidation. Working as designed if the TTL matches the product.
+- **Negative miss:** you did not cache 404 / empty list, so every bot hammering `/users/not-a-real-id` is a database lookup.
+
+**Working rule:** a hit ratio without a layer is trivia. A miss without a fill protocol is a stampede waiting for a deploy. Name hit, miss, stale, and who is allowed to hit origin.
+
+### Where to Cache
+
+Caches stack. Putting [Redis](https://redis.io/) in the picture does not mean the browser, the CDN, the reverse proxy, the process, and the database buffer pool stopped existing. Each layer has a **key**, a **TTL**, and a **blast radius**. The usual order, client to origin:
+
+```mermaid
+flowchart TB
+  subgraph clientLayer [Client]
+    browser[Browser / app HTTP cache]
+  end
+  subgraph edgeLayer [Edge]
+    cdn[CDN PoP]
+    proxy[Reverse proxy cache]
+  end
+  subgraph appLayer [Application]
+    l1[Process / L1]
+    l2[Distributed cache]
+  end
+  subgraph originLayer [Origin]
+    buf[DB buffer pool]
+    disk[(Durable store)]
+  end
+  browser --> cdn --> proxy --> l1 --> l2 --> buf --> disk
+```
+
+*Left to right is closer to the user. A hit on the left never reaches the right. Invalidation must travel the other way, or TTLs must be short enough that you do not care.*
+
+**Working rule:** pick the **leftmost** layer that can see enough of the request to be correct. Public, identical bytes belong on a CDN. Per-user JSON belongs in an application cache with a user in the key. The database buffer pool is not a design you draw; it is a gift you do not count on across restarts.
+
+#### Client, CDN, Application, and Database Caches
+
+Four places, four products, four failure modes. Mixing them in one sentence is how you "cached it" and still hit origin on every mobile client.
+
+| Layer | What it stores | Who sets the policy | Products | Failure if you skip it |
+| --- | --- | --- | --- | --- |
+| Client | Bytes the user already fetched | `Cache-Control`, `ETag`, `Last-Modified` ([RFC 9111](https://www.rfc-editor.org/rfc/rfc9111)) | Browser HTTP cache, mobile disk cache, service worker | Repeat views refetch; offline is a blank screen |
+| CDN / edge | Public (or cookie-aware) HTTP responses near the user | Same headers, plus CDN cache keys and purge APIs | [Amazon CloudFront](https://aws.amazon.com/cloudfront/), [Cloudflare](https://www.cloudflare.com/), [Fastly](https://www.fastly.com/), [Akamai](https://www.akamai.com/), [Google Cloud CDN](https://cloud.google.com/cdn), [Azure Front Door](https://azure.microsoft.com/products/frontdoor) | Every image and JS bundle crosses the ocean |
+| Application | Computed objects, sessions, rendered fragments | App code: key + TTL + invalidation | [Redis](https://redis.io/), [Memcached](https://memcached.org/), [Caffeine](https://github.com/ben-manes/caffeine), [Hazelcast](https://hazelcast.com/) | Every page rebuilds the same JOIN |
+| Database | Pages / items the engine already read | Engine internals, or a sidecar cache | [PostgreSQL](https://www.postgresql.org/) shared buffers, [InnoDB](https://dev.mysql.com/doc/refman/en/innodb-buffer-pool.html) buffer pool, [Amazon DynamoDB DAX](https://aws.amazon.com/dynamodb/dax/) | You cannot "tune the buffer pool" to replace a CDN |
+
+*The layer you skip is the round trip you keep paying. The layer you use without a key design is the stale bug you cannot find.*
+
+**Client / HTTP cache.** [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) is the contract: `Cache-Control: public, max-age=31536000, immutable` for fingerprinted assets; `private, max-age=0, must-revalidate` for a personalized HTML shell; `no-store` for anything with a secret or a charge. **`ETag`** / **`Last-Modified`** make a miss cheap: `If-None-Match` → `304 Not Modified` (Networking already had status codes; here they are a cache protocol). **`Vary`** is part of the cache key (usually `Accept-Encoding`; `Vary: Cookie` is how you accidentally disable sharing). Service workers can cache too; they are a second client cache you must version or users stick on a broken JS file.
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant O as Origin
+  B->>O: GET /app.a1b2.js
+  O-->>B: 200 Cache-Control: immutable
+  Note over B: later, same URL
+  B->>B: hit, no network
+  B->>O: GET /api/me
+  O-->>B: 200 ETag: "v3" Cache-Control: private, must-revalidate
+  B->>O: GET /api/me If-None-Match: "v3"
+  O-->>B: 304
+```
+
+*Fingerprinted static files should never revalidate until the URL changes. Personalized JSON may revalidate every time. One `Cache-Control` for the whole origin is how a bank statement lives in a shared CDN.*
+
+**CDN.** Next major section. Here you only need: the CDN is an HTTP cache **in many cities**, with its own cache key (host, path, chosen query params, chosen headers). It is the right box for public, cacheable responses. It is the wrong box for `Cache-Control: private` HTML you then forget to vary.
+
+**Reverse proxy cache** in *your* region: **[Varnish Cache](https://varnish-cache.org/)**, **[nginx](https://nginx.org/)** [`proxy_cache`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache), **[Apache Traffic Server](https://trafficserver.apache.org/)**, **[Squid](http://www.squid-cache.org/)**, **[HAProxy](https://www.haproxy.org/)** cache. Same idea as a CDN, smaller footprint: sit in front of origin, honor HTTP caching, collapse identical in-flight misses. Use when you are not ready for a vendor PoP network, or when you need VCL-level control ([Varnish Cache](https://varnish-cache.org/) VCL; [Fastly](https://www.fastly.com/) is [Varnish](https://varnish-cache.org/)-shaped at the edge).
+
+**[Varnish Cache](https://varnish-cache.org/)**
+
+- **Primary function:** HTTP reverse-proxy cache: VCL, grace (stale-while-revalidate), collapsing, purge.
+- **When we send you here:** origin in one region, HTML/API that can be shared, you want grace and request coalescing without a global CDN contract yet.
+- **What it is not:** not a global PoP network. Not an application data cache. One [Varnish](https://varnish-cache.org/) box is a cache, not [Amazon CloudFront](https://aws.amazon.com/cloudfront/).
+
+**Application — process (L1).** An in-process map with a size cap: **[Caffeine](https://github.com/ben-manes/caffeine)** ([W-TinyLFU](https://arxiv.org/abs/1512.00727), the default JVM answer), **[Guava Cache](https://github.com/google/guava/wiki/CachesExplained)** (older), **[Ehcache](https://www.ehcache.org/)**, a language `lru_cache`. Fastest hit; **not shared** across instances; dies with the process; easy to stampede per box. Use as a tiny hot-key shield in front of [Redis](https://redis.io/), not as the only cache of a cluster.
+
+**Application — distributed (L2).** **[Redis](https://redis.io/)**, **[Valkey](https://valkey.io/)**, **[Memcached](https://memcached.org/)**, **[Dragonfly](https://www.dragonflydb.io/)**, **[Hazelcast](https://hazelcast.com/)**, **[Apache Ignite](https://ignite.apache.org/)**. Shared across app workers. This is "the cache" on most sketches. **[Memcached](https://memcached.org/)** is a simple slab KV: very fast, no persistence, no data structures, client-side hashing. **[Redis](https://redis.io/)** is the richer default (TTL, structures, optional persistence, pub/sub for invalidation). Hosted: **[Amazon ElastiCache](https://aws.amazon.com/elasticache/)** ([Redis](https://redis.io/) / [Valkey](https://valkey.io/) / [Memcached](https://memcached.org/) engines), **[Amazon MemoryDB](https://aws.amazon.com/memorydb/)** ([Redis](https://redis.io/)-compatible, durable, more expensive), **[Google Cloud Memorystore](https://cloud.google.com/memorystore)**, **[Azure Managed Redis](https://azure.microsoft.com/products/managed-redis)** (the current Azure SKU; **[Azure Cache for Redis](https://azure.microsoft.com/products/cache)** is the older name).
+
+**[Memcached](https://memcached.org/)**
+
+- **Primary function:** distributed memory object cache: `get` / `set` / `delete`, slabs, LRU, no disk.
+- **When we send you here:** opaque blobs, you want the simplest possible cache, clients already speak the protocol ([twemproxy](https://github.com/twitter/twemproxy), [mcrouter](https://github.com/facebook/mcrouter)).
+- **What it is not:** not a data structure server, not a queue, not a primary. A reboot is an empty cache — design for it.
+
+**Database caches.** Every engine already caches pages: [PostgreSQL shared buffers](https://www.postgresql.org/docs/current/runtime-config-resource.html), [InnoDB buffer pool](https://dev.mysql.com/doc/refman/en/innodb-buffer-pool.html). You size them; you do not draw them as a product box. **[Amazon DynamoDB DAX](https://aws.amazon.com/dynamodb/dax/)** is the exception you *do* draw: a write-through cache sidecar in front of [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), microseconds for item gets, cluster-aware. Materialized views (previous chapter) are a cache with a schema. Query-result caches inside the engine go stale the same way [Redis](https://redis.io/) does; they are not a substitute for a key you control.
+
+**Working rule:** client and CDN for **HTTP-cacheable** bytes; [Redis](https://redis.io/) / [Memcached](https://memcached.org/) for **objects the app named**; L1 only for keys so hot that even a local RPC to [Redis](https://redis.io/) hurts; database buffer pools are not a layer you cite in a design review. If two layers share a key without a version, you will purge one and debug the other.
+
+### Write-Through, Write-Around, and Write-Back
+
+Reads have cache-aside. Writes have three classic policies plus the one everyone actually ships (TTL + explicit delete). The policy is **who is updated on a write, and in what order**. Wrong order is a stale read that looks like a heisenbug.
+
+```mermaid
+flowchart TB
+  subgraph through [Write-through]
+    a1[App] --> c1[Cache]
+    c1 --> d1[DB]
+  end
+  subgraph around [Write-around]
+    a2[App] --> d2[DB]
+    a2 -.->|invalidate or skip| c2[Cache]
+  end
+  subgraph back [Write-back]
+    a3[App] --> c3[Cache]
+    c3 -.->|flush later| d3[DB]
+  end
+```
+
+*Three write paths. Write-through keeps cache and DB in step at the cost of write latency. Write-around leaves the cache alone (or deletes the key) so a fill cannot clobber a fresh write as easily. Write-back is a cache pretending to be durable — only when you accept the RPO.*
+
+| Policy | On write | On read miss | Durability | Use |
+| --- | --- | --- | --- | --- |
+| **Write-through** | Cache *and* origin, origin ack required | Rare if writes keep keys warm | Origin is source of truth; cache matches | Item gets that must not be stale after the writer returns ([Amazon DynamoDB DAX](https://aws.amazon.com/dynamodb/dax/) write-through) |
+| **Write-around** | Origin only; cache skipped or **deleted** | Fill from origin | Origin is source of truth; cache may be cold | Write-heavy keys you would evict anyway; avoid filling the cache with one-time writes |
+| **Write-back** (write-behind) | Cache first, origin later | Hit on dirty data | Cache crash **loses** writes | Rare in user-facing OLTP. Batching counters, some CDN origin shields, not payments |
+| **Cache-aside + invalidate** | Origin, then `DEL` key (or short TTL) | Fill from origin | Origin is source of truth | **Default in this book** |
+
+**Invalidate vs overwrite.** After a write, `DEL user:9` (next reader fills) is safer than `SET user:9` from the writer if two writers race: a stale overwrite can resurrect an old value. **Pub/sub invalidation** ([Redis](https://redis.io/) Pub/Sub, or a CDC stream you already run with [Debezium](https://debezium.io/)) tells every L1 / node to drop a key. **TTL-only** is invalidate-by-waiting: correct when stale-until-T is a product sentence.
+
+```mermaid
+sequenceDiagram
+  participant A as App
+  participant D as Origin
+  participant R as Cache
+  A->>D: UPDATE item 9
+  D-->>A: ok
+  A->>R: DEL item:9
+  Note over R: next GET misses and fills
+```
+
+*Cache-aside plus delete. Two commits (DB, then cache) can still race: a reader can fill *before* the delete and put the old row back. Version the value (`item:9:v=7`) or delete *before* the write returns and accept a miss storm, or use a compare-and-set on the cache.*
+
+**The fill/write race** is the real exam: Reader fills cache with old row while writer commits new row and deletes. Order that loses: fill happens after delete. Mitigations: short TTL so the ghost dies, version / `CAS`, two-phase (write a "pending" marker), or lock the key during write+invalidate.
+
+**Working rule:** default **cache-aside + delete + TTL**. Write-through when a sidecar already does it ([Amazon DynamoDB DAX](https://aws.amazon.com/dynamodb/dax/)). Write-back only when losing the unflushed window is an RPO you can say — never for money. If you cannot draw the race, you do not have a write policy.
+
+### Eviction Policies
+
+Caches are finite. **Eviction** is how a full cache picks a victim. **TTL expiry** is not eviction (the key died of old age); both free memory. An eviction policy you cannot name is "we will OOM."
+
+| Policy | Victim | Strength | Weakness |
+| --- | --- | --- | --- |
+| **LRU** (least recently used) | Idle longest | Simple; matches "hot working set" | One scan pollutes the cache; no sense of frequency |
+| **LFU** (least frequently used) | Lowest hit count | Survives a one-time scan | New keys look cold; counters need aging |
+| **FIFO / random** | Oldest insert / luck | Cheap | Ignores popularity |
+| **TTL / volatile-*** | Expired, or LRU among keys that *have* a TTL | Lets durable keys stay | Keys without TTL can pin memory |
+| **TinyLFU / W-TinyLFU** | Admission filter + LRU window ([Caffeine](https://github.com/ben-manes/caffeine), [TinyLFU paper](https://arxiv.org/abs/1512.00727)) | Scan-resistant; excellent hit ratio | More moving parts; you take the library's word |
+| **Segmented LRU** | New keys prove themselves before the main LRU | Scan-resistant | Tuning the probation size |
+
+```mermaid
+flowchart LR
+  set[SET new key]
+  full{Cache full?}
+  admit{Admit?}
+  victim[Evict victim]
+  store[Store key]
+  set --> full
+  full -->|no| store
+  full -->|yes| admit
+  admit -->|yes| victim --> store
+  admit -->|no| drop[Drop the write]
+```
+
+*Admission and eviction are different knobs. TinyLFU may **refuse** a one-hit-wonder so it never evicts a hot key. LRU always stores and always evicts someone.*
+
+**[Redis](https://redis.io/)** [`maxmemory-policy`](https://redis.io/docs/latest/develop/reference/eviction/): `noeviction` (writes fail — a pager, not a cache), `allkeys-lru`, `allkeys-lfu`, `volatile-lru` / `volatile-ttl` (only keys with a TTL). **`noeviction` on a cache is a production incident.** Set `maxmemory`, pick `allkeys-lru` or `allkeys-lfu` unless you have a reason, and monitor evicted_keys vs hit ratio. **[Memcached](https://memcached.org/)** uses slab-class LRU: objects of similar size share a slab; a bad size mix "evicts" while another slab is empty — that is a slab issue, not a reason to rewrite the app in [Redis](https://redis.io/) without measuring.
+
+**Size vs count.** A 1 MB JSON blob is not one "key" of cost. Cap **bytes**, not just key count. Compress on the wire ([Redis](https://redis.io/) values are opaque; you compress in the app). Do not cache a 20 MB row you should have put on [Amazon S3](https://aws.amazon.com/s3/).
+
+**Working rule:** finite memory, named policy, `maxmemory` set, TTL on almost every key. LRU is the default sentence; LFU / TinyLFU when a scan or a huge tail of one-hit keys wrecks hit ratio. Eviction is not invalidation — a victim can still be *correct*, just unlucky.
+
+### Distributed Cache and Hot Keys
+
+One process cache dies with the process and does not help the other 30 replicas. A **distributed cache** is a fleet: sharded by key, maybe replicated, with a client that knows where `user:9` lives. This is the cache you draw next to the app. **Design a Distributed Cache** in Infrastructure and Platform Problems is the interview version; here you need the production sentences.
+
+**Placement.** Client-side hash to a node ([Memcached](https://memcached.org/) with consistent hashing, [twemproxy](https://github.com/twitter/twemproxy), [mcrouter](https://github.com/facebook/mcrouter)), or a cluster protocol ([Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/), [Valkey Cluster](https://valkey.io/)). **Consistent hashing** (Algorithms and Data Structures for System Design) means adding a node moves `~1/N` keys, not all of them. A modulo `N` you cannot change is the same hostage situation as a shard hash in Databases and Storage.
+
+```mermaid
+flowchart LR
+  app1[App]
+  app2[App]
+  subgraph cluster [Cache cluster]
+    n0[(node 0)]
+    n1[(node 1)]
+    n2[(node 2)]
+  end
+  app1 -->|hash user:9| n1
+  app2 -->|hash user:9| n1
+```
+
+*Every app instance must agree on the map. A wrong node is a mysterious miss (you just filled a different box). [Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/) `MOVED` / `ASK` redirects are this contract.*
+
+**Replication in a cache** is not durability theater. A replica lets you fail over a node without a total cold cache. **[Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/)** promotes a replica; **[Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/)** keeps replica slots. **[Amazon ElastiCache](https://aws.amazon.com/elasticache/)** Multi-AZ and **[Amazon MemoryDB](https://aws.amazon.com/memorydb/)** take the pager. After failover the cache may still be **empty on some slots** — the origin must survive that (fail open to origin with a shed load, or serve stale). Failing *closed* (5xx when [Redis](https://redis.io/) is down) is correct for a session store you refuse to degrade; it is an outage for a homepage cache.
+
+**Hot keys** are the cache version of a hot partition: one key (celebrity profile, a viral object, a global config) is such a large fraction of QPS that one node or one origin fill melts. CDNs absorb this for **public HTTP**. For **application keys**:
+
+```mermaid
+flowchart TB
+  clients[Many readers]
+  subgraph bad [One hot key]
+    n[(one cache node)]
+    origin[(origin)]
+    n --> origin
+  end
+  clients --> n
+```
+
+```mermaid
+flowchart TB
+  clients[Many readers]
+  subgraph better [Hot-key controls]
+    l1[L1 on every app]
+    replicas[Replicated hot key]
+    split[Split counters user:9:b0..bN]
+    cdn[CDN for public bytes]
+  end
+  clients --> l1
+  clients --> replicas
+  clients --> split
+  clients --> cdn
+```
+
+*Left: one key, one node, a herd on miss. Right: L1 absorbs repeats; replicate the hot value; split a counter; put public bytes on a CDN so origin never sees them.*
+
+| Control | What it does | Cost |
+| --- | --- | --- |
+| L1 in front of L2 | Process cache for the few hottest keys ([Caffeine](https://github.com/ben-manes/caffeine)) | Stale per instance until TTL; memory on every box |
+| Replicate the key | Copy the hot value to many cache nodes | Extra memory; invalidation fans out |
+| Split the key | `likes:post:9:{0..N}` then sum | Read must assemble; write must pick a shard |
+| Request coalescing | Already required; hotter keys need it more | Slow fill stalls waiters |
+| CDN / edge | Public object never reaches [Redis](https://redis.io/) | Only for HTTP-cacheable, shareable bytes |
+| Isolate the whale | Dedicated cache shard / cluster for a tenant | Operational special case |
+
+**Cache key design** is the rest of the job. `{entity}:{id}:{representation}:{version}` — `user:9:public:v3`, not `data`. Include the **variant** the response depends on (locale, currency, authz role) or you will leak one user's page to another. Hash long keys. Do not put secrets in keys (they show up in [Redis](https://redis.io/) `SCAN` and in CDN logs). **Namespace + version** is how a deploy invalidates the world without `FLUSHALL` (which is a stampede you scheduled).
+
+**Warming.** After a cold cluster or a new region: replay top-N keys from a log, prefetch sitemaps to the CDN, or accept a slow morning. **[Redis](https://redis.io/)** `DEBUG SLEEP` is not a warmup strategy. A read-replica of origin plus a job that `SET`s the working set is.
+
+**[Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/)** (and **[Amazon ElastiCache](https://aws.amazon.com/elasticache/)** in cluster mode, **[Valkey](https://valkey.io/)**)
+
+- **Primary function:** sharded [Redis](https://redis.io/): 16384 hash slots, `MOVED` redirects, per-slot replicas.
+- **When we send you here:** the working set no longer fits one node, or one node cannot take the QPS even after you fixed hot keys.
+- **What it is not:** not multi-key transactions across slots (`MGET` of keys that hash apart will fail or need a hashtag `{user:9}`). Not a reason to skip L1 for a single hot key — Cluster still puts that key on **one** slot.
+
+**Working rule:** hash keys consistently, survive an empty node, and have a written plan for the one key that is 40% of QPS. [FLUSHALL](https://redis.io/commands/flushall/) is not invalidation. If [Redis](https://redis.io/) dying takes the product down, you drew a single point of failure and called it a cache.
+
+### Content Delivery Networks
+
+A **content delivery network (CDN)** is a fleet of HTTP caches in **points of presence (PoPs)**, reached by **anycast DNS** (or a DNS answer that picks a nearby PoP). The client fetches from a nearby edge; the edge fetches from **origin** on a miss (your [Amazon S3](https://aws.amazon.com/s3/) bucket, your [nginx](https://nginx.org/) / app, your object store). Networking already covered DNS and reverse proxies. A CDN is a reverse-proxy cache **with a global footprint**, plus TLS termination, DDoS absorption, and usually a programmable edge.
+
+```mermaid
+flowchart LR
+  u1[User near FRA]
+  u2[User near IAD]
+  u3[User near SIN]
+  fra[PoP FRA]
+  iad[PoP IAD]
+  sin[PoP SIN]
+  origin[Origin]
+  u1 --> fra
+  u2 --> iad
+  u3 --> sin
+  fra --> origin
+  iad --> origin
+  sin --> origin
+```
+
+*Three cities, one origin. Hits never leave the PoP. Misses (and purges) still cost origin. Draw the origin, the cache key, and the purge, or you drew a cloud logo.*
+
+**What a CDN actually does:**
+
+- **Cache** GET/HEAD (and sometimes POST, which you should not cache) per a **cache key**: scheme, host, path, selected query strings, selected headers (`Accept-Encoding`, maybe `Accept-Language`). Default "query string in the key" can fragment the cache (`?utm_…`); default "ignore query string" can serve the wrong product.
+- **Terminate TLS** close to the user (HTTP/2, HTTP/3 / QUIC). Origin can be HTTP inside a private path, or HTTPS with origin certificates ([Amazon CloudFront](https://aws.amazon.com/cloudfront/) origin access control to [Amazon S3](https://aws.amazon.com/s3/)).
+- **Collapse** concurrent misses at the PoP (and, with **origin shield**, at one regional shield PoP) so a viral object is one origin GET, not one per PoP.
+- **Transform** at the edge: image resize, Brotli, header rewrite — [Cloudflare Workers](https://workers.cloudflare.com/), [Amazon CloudFront Functions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-functions.html) / [Lambda@Edge](https://aws.amazon.com/lambda/edge/), [Fastly Compute](https://www.fastly.com/products/compute). This is still a cache plus a small function, not your monolith.
+- **Purge:** URL, wildcard, or **surrogate keys** ([Fastly surrogate keys](https://www.fastly.com/documentation/guides/full-site-delivery/purging/working-with-surrogate-keys/), [Cloudflare cache purge](https://developers.cloudflare.com/cache/how-to/purge-cache/), [Amazon CloudFront invalidation](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html)). A purge is an API you must auth, rate-limit, and make idempotent. "Wait for TTL" is also a purge policy.
+
+**[Amazon CloudFront](https://aws.amazon.com/cloudfront/)**
+
+- **Primary function:** AWS CDN: cache behaviors, origin groups, origin shield, signed URLs/cookies, Functions / [Lambda@Edge](https://aws.amazon.com/lambda/edge/), native [Amazon S3](https://aws.amazon.com/s3/) origins.
+- **When we send you here:** origin already on [AWS](https://aws.amazon.com/), media and static sites, you want signed cookies in the same IAM world.
+- **What it is not:** not [Amazon ElastiCache](https://aws.amazon.com/elasticache/). Not a database. Invalidations are eventually consistent across PoPs and are not a transaction.
+
+**[Cloudflare](https://www.cloudflare.com/)** (CDN + [cache](https://developers.cloudflare.com/cache/) + [Workers](https://workers.cloudflare.com/))
+
+- **Primary function:** anycast edge: CDN, DNS, WAF, DDoS, [Workers](https://workers.cloudflare.com/), optional [R2](https://www.cloudflare.com/developer-platform/products/r2/) origin.
+- **When we send you here:** DNS already on [Cloudflare](https://www.cloudflare.com/), you want one edge for cache + WAF + a small Worker, or you are origin-agnostic.
+- **What it is not:** not "set proxy on and forget Cache-Control." Development mode and `BYPASS` are how you debug; they are not a production cache policy.
+
+**[Fastly](https://www.fastly.com/)** / **[Akamai](https://www.akamai.com/)** / **[Google Cloud CDN](https://cloud.google.com/cdn)** / **[Azure Front Door](https://azure.microsoft.com/products/frontdoor)**
+
+- **[Fastly](https://www.fastly.com/):** [Varnish](https://varnish-cache.org/)-shaped VCL, instant purge, surrogate keys, [Compute](https://www.fastly.com/products/compute). When purge latency *is* the product (news, storefront).
+- **[Akamai](https://www.akamai.com/):** huge footprint, media, enterprise contracts. When the interviewer or the enterprise already named it.
+- **[Google Cloud CDN](https://cloud.google.com/cdn)** / **[Cloud Media CDN](https://cloud.google.com/media-cdn):** in front of [Cloud Load Balancing](https://cloud.google.com/load-balancing) / [Google Cloud Storage](https://cloud.google.com/storage).
+- **[Azure Front Door](https://azure.microsoft.com/products/frontdoor):** anycast + WAF + cache in front of Azure origins (the modern Azure CDN story).
+
+**Cache-Control still wins.** The CDN is a compliant HTTP cache until you override it in the vendor console. `Cache-Control: private` must not be stored on a shared PoP. `Set-Cookie` usually makes a response uncacheable — good, because a session cookie in a shared cache is an incident. **Signed URLs / cookies** ([CloudFront signed URLs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-signed-urls.html)) are how a private object on [Amazon S3](https://aws.amazon.com/s3/) still uses the edge without becoming public.
+
+**Working rule:** public, identical, GET-able bytes go on a CDN with a cache key you can write on the sketch and a purge you have tested. Personalized bytes stay `private` or are not at the edge. A CDN logo without `Cache-Control` is hope.
+
+#### Push CDNs vs Pull CDNs
+
+**Pull (origin-fetch)** is the default: the PoP, on miss, **GETs origin** and stores the response. You publish to origin ([Amazon S3](https://aws.amazon.com/s3/), your app). The CDN is a cache. Almost every product above is pull.
+
+**Push (ingest)** means you **upload objects into the CDN** (or a storage product the CDN treats as authoritative) *before* readers arrive: an originless bucket, a traditional push hostname, a media ingest. The PoP should already have the bytes. Misses are failures, not lazy loads.
+
+```mermaid
+flowchart LR
+  subgraph pull [Pull CDN]
+    pub1[Publish to origin]
+    miss[PoP miss]
+    fetch[GET origin]
+    pub1 --> origin1[Origin]
+    miss --> fetch --> origin1
+  end
+  subgraph push [Push CDN]
+    pub2[Upload to CDN / ingest]
+    hit[PoP already has object]
+    pub2 --> pop[(CDN storage)]
+    hit --> pop
+  end
+```
+
+*Pull: origin is source of truth; first reader in a PoP pays a miss. Push: you are source of truth *inside* the CDN; a forgotten upload is a 404, not a lazy fill.*
+
+| | Pull | Push |
+| --- | --- | --- |
+| Source of truth | Origin ([Amazon S3](https://aws.amazon.com/s3/), app) | What you uploaded to the CDN |
+| First reader | Miss + origin GET | Hit if you ingested; else error |
+| Operational loop | Deploy origin, set TTL / purge | Ingest pipeline, then readers |
+| Typical use | Sites, APIs, object buckets, most sketches | Pre-positioned media, some legacy "upload to [Akamai](https://www.akamai.com/)" workflows, game/patch distribution |
+| Failure | Origin down → misses fail (hits still serve until TTL) | Ingest down → new objects missing everywhere |
+
+**Origin shield** is a pull trick that behaves a bit like a private push of misses: one (or few) shield PoPs talk to origin; the other PoPs treat the shield as their origin. [Amazon CloudFront Origin Shield](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/origin-shield.html) and similar features at [Cloudflare](https://www.cloudflare.com/) / [Fastly](https://www.fastly.com/) exist so a global viral miss is **one** origin load, not one per PoP.
+
+```mermaid
+flowchart LR
+  p1[PoP]
+  p2[PoP]
+  p3[PoP]
+  shield[Origin shield]
+  origin[Origin]
+  p1 --> shield
+  p2 --> shield
+  p3 --> shield
+  shield --> origin
+```
+
+*Shielded pull. Collapsing at the shield is the stampede control for a CDN. Without it, N PoPs × a new object = N origin GETs at once.*
+
+**Working rule:** pull unless you have an ingest pipeline that must pre-warm (large video, game binaries). Push is an operational product, not a cache policy. If you cannot say who uploads, you do not have a push CDN; you have a missing origin.
+
+#### What a CDN Does Not Solve
+
+A CDN is not a personality for the architecture. It does not:
+
+- **Replace the origin.** Uncached paths, POST/PUT/PATCH, WebSockets (Message Queues, Streams, and Real-Time Communication), signed-cookie misses — all still land on you. Origin must autoscale, or the first miss after a purge *is* the outage.
+- **Make personalized HTML globally shareable.** `Cache-Control: private`, `Vary: Cookie`, `Authorization` — the PoP should not reuse that response. A "CDN" that caches `Set-Cookie` is a session leak. **Edge-side include** / fragment caches exist ([Fastly](https://www.fastly.com/) ESI-style patterns, [Cloudflare Workers](https://workers.cloudflare.com/) assembling a shell + fragments); they are an application cache at the edge, with all of this chapter's key-design rules.
+- **Fix a slow origin on a miss.** p99 of a pull CDN includes origin p99. Shielding and coalescing reduce *duplicate* work; they do not make a 2 s JOIN fast.
+- **Fix correctness.** Stale prices, stale inventory, stale permissions — TTL and purge are the contract. Eventual consistency across PoPs after a purge is real; [Fastly](https://www.fastly.com/) instant purge is why people pay [Fastly](https://www.fastly.com/). "We invalidated" is not "every PoP has dropped it this millisecond" unless the vendor promises that.
+- **Replace application authz.** Signed URLs prove the *URL* was minted. They do not revoke a shared screenshot of that URL unless you expire it. Object ACL + short-lived signatures is the design; the CDN only delivers.
+- **Replace a database or [Redis](https://redis.io/).** Counters, sessions you cannot lose, leaderboards — wrong layer. The CDN may cache a *page that displays* a counter.
+- **Absorb every DDoS by magic.** It absorbs a lot of Layer 3/4 and some Layer 7 ([Cloudflare](https://www.cloudflare.com/) / [Akamai](https://www.akamai.com/) / [AWS Shield](https://aws.amazon.com/shield/)). Application-layer POST floods still need origin limits (API Design rate limiting, Security and Authentication later).
+- **Delete your origin bill for APIs that were never cacheable.** If every request is `private` JSON, you bought TLS and WAF, not a cache hit ratio.
+
+```mermaid
+flowchart TB
+  q{Is the response public, GET, and identical for this cache key?}
+  q -->|yes| cdn[CDN + Cache-Control + purge]
+  q -->|personalized GET| app[App cache with user in the key]
+  q -->|write / authz / money| origin[Origin, no shared cache]
+  q -->|huge byte, still public| cdn
+```
+
+*The decision is the response, not the vendor. A CDN on the sketch for `/api/me` without a cache key that includes the user is a leak or a miss — pick one on purpose.*
+
+**Working rule:** CDNs ship **cacheable GET bytes** close to users. They do not ship your consistency model, your POST, or your origin SLO. If the page is different per user, the edge holds a shell at most; the data path is this chapter's application cache, or no cache.
+
+### Summary: Caching and Content Delivery Networks
+
+A cache is a **derived copy** with a **hit, a miss, a TTL, and an origin that still works when the copy is gone** — not a smaller database. **Cache-aside** is the default read; **stampede** is the default incident (coalesce, lock, stale-while-revalidate, jitter, negative cache). **Layers** stack: client HTTP ([RFC 9111](https://www.rfc-editor.org/rfc/rfc9111)), CDN, reverse proxy ([Varnish Cache](https://varnish-cache.org/), [nginx](https://nginx.org/)), L1 ([Caffeine](https://github.com/ben-manes/caffeine)), L2 ([Redis](https://redis.io/), [Valkey](https://valkey.io/), [Memcached](https://memcached.org/), [Amazon ElastiCache](https://aws.amazon.com/elasticache/)), then the engine's own buffer pool ([Amazon DynamoDB DAX](https://aws.amazon.com/dynamodb/dax/) when you draw it). **Writes:** cache-aside + delete + TTL; write-through when a sidecar does it; write-back only with an RPO. **Eviction** is finite memory ([Redis `maxmemory-policy`](https://redis.io/docs/latest/develop/reference/eviction/), LRU / LFU / TinyLFU) — not invalidation. **Distributed caches** need a hash that agrees, a failover that does not 5xx the homepage unless you mean it, and a **hot-key** plan (L1, split, CDN). **CDNs** ([Amazon CloudFront](https://aws.amazon.com/cloudfront/), [Cloudflare](https://www.cloudflare.com/), [Fastly](https://www.fastly.com/), [Akamai](https://www.akamai.com/), [Google Cloud CDN](https://cloud.google.com/cdn), [Azure Front Door](https://azure.microsoft.com/products/frontdoor)) are global HTTP caches: pull by default, push when you ingest, origin shield against a global miss storm. They do not replace origin, authz, or personalized JSON. Draw the copies in [Excalidraw](https://excalidraw.com/). Next is **Message Queues, Streams, and Real-Time Communication**.
