@@ -1654,3 +1654,437 @@ A **checksum** is a compact fingerprint of bytes so a hop can ask "did this get 
 ### Summary: Networking, Protocols, and Web Concepts
 
 The request path on the wire is address, transport, name, HTTP, TLS, then a proxy or balancer. **IP** is public versus [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) private, planned as CIDR in [Amazon VPC](https://aws.amazon.com/vpc/) (or [Google Cloud VPC](https://cloud.google.com/vpc), [Azure Virtual Network](https://azure.microsoft.com/products/virtual-network)), with NAT and an internet gateway as the door. **OSI** is vocabulary: design at L3, L4, and L7. **TCP** is the reliable stream ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293)); **UDP** is datagrams; **HTTP/3** is [QUIC](https://www.rfc-editor.org/rfc/rfc9000) on UDP. **DNS** ([Amazon Route 53](https://aws.amazon.com/route53/), [Cloudflare DNS](https://www.cloudflare.com/application-services/products/dns/), [CoreDNS](https://coredns.io/)) is a lookup chain plus a TTL that *is* failover math; prove it with [dig](https://bind9.readthedocs.io/en/latest/manpages.html#dig-dns-lookup-utility). **HTTP** ([RFC 9110](https://www.rfc-editor.org/rfc/rfc9110), [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP)) is method, status, headers, cookies, and CORS-for-browsers; sessions survive replica death in [Redis](https://redis.io/), not in sticky RAM. **TLS 1.3** ([RFC 8446](https://www.rfc-editor.org/rfc/rfc8446)) terminates at an edge, a balancer, or the app, with certs from [Let's Encrypt](https://letsencrypt.org/), [ACM](https://aws.amazon.com/certificate-manager/), or [cert-manager](https://cert-manager.io/); mTLS is workload identity ([SPIFFE](https://spiffe.io/)), not a public CA. **Forward proxies** ([Squid](https://www.squid-cache.org/)) are egress; **reverse proxies** ([NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/)) are ingress. **Load balancing** is L4 vs L7 ([AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) vs [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/)), an algorithm, health checks, draining, and stickiness as a crutch. **Clustering** is membership and state; it is not a synonym for balancing. **Checksums** catch accidents; TLS AEAD catches tampering. Draw the hops in [Excalidraw](https://excalidraw.com/). Next is **API Design**.
+
+## API Design
+
+Networking, Protocols, and Web Concepts put the hops on the wire. This chapter is the **contract** those hops carry: what the client may ask, what the server will do, which errors mean "try again," and which mean "stop." We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by writing the contract in [Excalidraw](https://excalidraw.com/) first — resources or RPCs, status, pagination, version — then naming a spec format ([OpenAPI Specification](https://www.openapis.org/), [GraphQL](https://graphql.org/) SDL, [Protocol Buffers](https://protobuf.dev/)) only when the choice matters. The next chapter is Databases and Storage — the state the contract reads and writes.
+
+An API is not "we have HTTP." It is a promise you can version, test, and keep when the implementation behind it changes. Miss the promise and retries double-charge, mobile clients freeze on a renamed field, and a gateway cannot throttle what it cannot name.
+
+```mermaid
+flowchart LR
+  client[Client]
+  contract[Contract]
+  gateway[API Gateway]
+  service[Service]
+  store[(Datastore)]
+  client --> gateway
+  gateway --> service
+  service --> store
+  client -. speaks .-> contract
+  service -. implements .-> contract
+```
+
+*The contract sits between client and implementation. Draw it in [Excalidraw](https://excalidraw.com/) before you pick [Amazon API Gateway](https://aws.amazon.com/api-gateway/) or [Kong](https://konghq.com/).*
+
+### What an API Must Make Obvious
+
+A usable API makes seven facts obvious without a meeting:
+
+1. **Audience.** Browser, mobile app, partner, or another service. [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS) is only for browsers; a partner integration is an identity and a quota.
+2. **Surface.** Resources (REST), a graph ([GraphQL](https://graphql.org/)), or procedures ([gRPC](https://grpc.io/)). Mixed styles are allowed; mixed *stories* are not.
+3. **Authn and authz.** Who is calling, and what they may touch. Security and Authentication is the later chapter. Here you only need: unauthenticated public GET is a choice, not a default.
+4. **Failure.** Status or RPC code, a stable error code, a retry story. [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details is the HTTP envelope we prefer later in this chapter.
+5. **Replay.** Which operations are safe to retry. Idempotency is a heading below, not a comment in a handler.
+6. **Shape over time.** Pagination, filtering, and versioning. A list without a cursor is a time bomb.
+7. **Quota.** Rate limits, burst, and what `429` means. Rate Limiting as an API Concern is the heading; Algorithms and Data Structures for System Design owns the token bucket.
+
+The **artifact** is how those facts leave the whiteboard. Pick one and keep it in source control:
+
+**[OpenAPI Specification](https://www.openapis.org/)** (with **[Swagger UI](https://github.com/swagger-api/swagger-ui)** and **[Swagger Editor](https://editor.swagger.io/)**)
+
+- **Primary function:** describe HTTP APIs (paths, methods, schemas, status codes, security schemes) so humans and machines share one contract. [OpenAPI](https://www.openapis.org/) is the spec; [Swagger](https://swagger.io/) is the tooling brand.
+- **When we send you here:** REST or HTTP RPC that browsers, partners, and gateways must share. [Amazon API Gateway](https://aws.amazon.com/api-gateway/), [Azure API Management](https://azure.microsoft.com/products/api-management), and [Apigee](https://cloud.google.com/apigee) import it.
+- **What it is not:** not a runtime. A pretty [Swagger UI](https://github.com/swagger-api/swagger-ui) that disagrees with production is a lie. Lint with **[Spectral](https://stoplight.io/open-source/spectral)** or **[Redocly CLI](https://redocly.com/docs/cli)** in CI so the lie cannot merge.
+
+**[GraphQL](https://graphql.org/) SDL** and **[Protocol Buffers](https://protobuf.dev/)** are the other two artifacts; their headings below. **[JSON Schema](https://json-schema.org/)** is what [OpenAPI](https://www.openapis.org/) already embeds for bodies — do not invent a fourth schema language for the same JSON.
+
+**How you exercise the contract** (not how you design it): **[curl](https://curl.se/)** for one request, **[Bruno](https://www.usebruno.com/)** or **[Insomnia](https://insomnia.rest/)** for collections that live next to the repo, **[Postman](https://www.postman.com/)** when the team already lives there. **[Pact](https://docs.pact.io/)** is consumer-driven contract tests when two teams cannot share a process. None of these replace the spec file.
+
+**Working rule:** if you cannot point at the contract file, you do not have an API design. You have a server. Write audience, surface, failure, replay, shape, and quota on the [Excalidraw](https://excalidraw.com/) canvas before a product logo.
+
+### REST
+
+**REST** (Representational State Transfer) is Roy Fielding's architectural style ([Fielding dissertation, chapter 5](https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm)): resources identified by URLs, a uniform interface (HTTP methods and status codes from [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)), representations (usually JSON), and hypermedia as an option. Production "REST" is almost always **HTTP + JSON + resource URLs**. That is enough if you are honest about it. Reciting HATEOAS without shipping a `Link` is trivia.
+
+[MDN HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP) is the readable map. [JSON:API](https://jsonapi.org/) and [HAL](https://datatracker.ietf.org/doc/html/draft-kelly-json-hal) are opinionated resource documents; use them when you want a standard for includes, errors, and links instead of inventing one. Most sketches still say "REST" and mean resource URLs plus [OpenAPI](https://www.openapis.org/).
+
+REST is the default public API in this book: cacheable GETs, boring URLs, every gateway and browser already speaks it. GraphQL and gRPC have to win on a specific axis, not on fashion.
+
+**Working rule:** nouns in the URL, verbs in the method, meaning in the status. `POST /deleteOrder` is RPC wearing HTTP.
+
+#### Resources, Verbs, and Status Contracts
+
+A **resource** is a thing with an identifier: `/orders`, `/orders/123`, `/orders/123/items`. Collections and items are different resources. Query parameters filter a collection (`?status=open`); they are not a second verb.
+
+**Verbs** ([MDN request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods)):
+
+| Method | On a resource | Idempotent? | Typical success |
+| --- | --- | --- | --- |
+| `GET` | Read a representation | Yes (and safe) | `200` or `304` |
+| `HEAD` | Headers only | Yes (and safe) | `200` |
+| `POST` | Create, or a non-idempotent action | No | `201` + `Location`, or `202` if async |
+| `PUT` | Replace the resource | Yes | `200` / `204`, or `201` if created |
+| `PATCH` | Partial update ([RFC 5789](https://www.rfc-editor.org/rfc/rfc5789)) | Only if you design it so | `200` / `204` |
+| `DELETE` | Remove | Yes | `204` or `200` |
+| `OPTIONS` | What the resource allows | Yes (and safe) | `200` + `Allow`; CORS preflight |
+
+*HTTP semantics from [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110). Idempotent means repeating the request has the same resource effect, not "the response body is identical."*
+
+**Status is the contract, not a debug string.** A create that returns `200` with an id buried in JSON cannot be distinguished from a replay by a gateway. A validation failure that returns `500` teaches clients to retry until they stampede. Map:
+
+- **2xx** — this hop did the job. `201` created (send `Location`). `202` accepted (the work continues on a queue; Message Queues, Streams, and Real-Time Communication is later). `204` no body.
+- **4xx** — the client must change something. `400` malformed, `401` unauthenticated, `403` authenticated but not allowed, `404` no such resource, `409` conflict (version, duplicate), `412` precondition failed (`If-Match` / ETag), `415` wrong `Content-Type`, `429` rate-limited.
+- **5xx** — this hop (or one behind it) failed. `503` with `Retry-After` is "back off"; `500` is a bug you will page on.
+
+**[curl](https://curl.se/)** is how you prove the contract: `-i` to see status and headers, `-X` for the method, `-H` for `Idempotency-Key` and `If-Match`. It is not a load test.
+
+**Working rule:** method + URL + status must be enough to know what happened. If you need to parse JSON to learn "it failed," the status contract is missing.
+
+#### Pagination, Filtering, and Versioning
+
+Lists grow. Filters multiply. Fields change. These are three different knobs; do not version the API because you needed a cursor.
+
+**Pagination**
+
+| Style | How | Use when | Cost |
+| --- | --- | --- | --- |
+| Offset / limit | `?limit=20&offset=40` | Admin tables, tiny collections | Deep offsets are expensive; rows shift under writes |
+| Page number | `?page=3&per_page=20` | Same as offset, friendlier | Same drift; clients invent last page |
+| Cursor / keyset | `?cursor=eyJpZCI6MTIz` (opaque) | Feeds, anything write-heavy | No random access; you must sort on a stable key |
+| Link headers | [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) `Link: rel=next` | When the body should stay a pure array | Clients must read headers; gateways must not strip them |
+
+```mermaid
+flowchart TB
+  subgraph offset [Offset: page 2 under inserts]
+    o1[Rows 1 to 20]
+    o2[Insert at top]
+    o3[Page 2 repeats a row]
+    o1 --> o2 --> o3
+  end
+  subgraph cursor [Cursor: after id 20]
+    c1[Rows 1 to 20]
+    c2[Insert at top]
+    c3[Next page still after id 20]
+    c1 --> c2 --> c3
+  end
+```
+
+*Offset pages drift when the collection is written. Opaque cursors (keyset on a stable sort) do not. Prefer cursors on any public list.*
+
+Never let the client pass `ORDER BY` or a SQL fragment. Filtering is **named query parameters** (`?status=open&ship_after=2026-01-01`) with documented operators. If the client needs an arbitrary graph of fields and nested filters, that is a reason to consider [GraphQL](https://graphql.org/) — not a reason to embed a query language in a REST query string.
+
+**Versioning** is how you change the contract without breaking shipped clients.
+
+| Strategy | Example | When it is honest |
+| --- | --- | --- |
+| URL prefix | `/v1/orders` | Public HTTP; simplest for gateways and [OpenAPI](https://www.openapis.org/) servers |
+| Header | `Accept: application/vnd.example.v2+json` | One URL, many representations; more work for caches |
+| Query | `?api_version=2` | Easy to forget; caches and logs treat it as optional |
+| Additive only | no `/v2` at all | Internal APIs with one client you ship; still need deprecation |
+
+**Compatible changes:** add an optional field, add an endpoint, add an enum value the old client can ignore, add a query parameter with a default. **Breaking changes:** rename or remove a field, change a type, reuse a URL for a different resource, tighten validation on a field old clients send, change auth. Put breaking changes in a new version; run both; set a sunset ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)) so `/v1` actually dies.
+
+**Working rule:** paginate with an opaque cursor unless the list is tiny and admin-only. Filter with named params. Version in the URL for public HTTP. Do not bump `/v2` because you added a field.
+
+### GraphQL
+
+**[GraphQL](https://graphql.org/)** is a query language and a type system over a single HTTP endpoint (usually `POST /graphql`). The client asks for a tree of fields; the server returns that tree. The spec is at [graphql.org](https://graphql.org/learn/). Transport over HTTP is [GraphQL over HTTP](https://http-spec.graphql.org/). You still have HTTP in front: TLS, a gateway, auth headers. GraphQL does not replace them.
+
+The problem it solves is **over-fetching and under-fetching** on REST: a mobile screen that needed three REST round trips, or a `GET /users/1` that returned fifty unused fields. One GraphQL query can ask for `user { name orders { total } }` and skip the rest.
+
+```mermaid
+flowchart LR
+  subgraph restPath [REST]
+    a[GET /users/1] --> b[GET /users/1/orders]
+    b --> c[GET /orders/9/items]
+  end
+  subgraph gqlPath [GraphQL]
+    q["query { user { orders { items } } }"]
+  end
+```
+
+*Same screen. REST pays three round trips unless you add a custom BFF or an include parameter. GraphQL pays one — and shifts the N+1 problem into the resolver layer.*
+
+**What you must still design:**
+
+- **Schema as the contract.** Types, queries, mutations, (optionally) subscriptions. Subscriptions are a real-time path; Message Queues, Streams, and Real-Time Communication owns the wire ([WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) / [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)). Here: a subscription is another operation type in the SDL, not a reason to skip auth.
+- **N+1.** A naive `orders { items }` resolver that hits the datastore per order will destroy you. **[DataLoader](https://github.com/graphql/dataloader)** (or your language's batching equivalent) batches and caches per request. The sketch must say "batched resolvers," not "GraphQL is fast."
+- **Mutations are not REST POST.** They need the same idempotency story as any write. A mutation named `createOrder` retried by a mobile radio blip is a duplicate order unless you key it.
+- **Authz is per field.** A hidden REST endpoint is not enough; a client can ask for `user { ssn }`. The schema is public-ish. Hide fields in the schema, or check in the resolver — preferably both.
+- **Caching.** HTTP GET caching and CDNs like [Cloudflare](https://www.cloudflare.com/) understand `GET /orders/123`. A POST with a query string in the body does not, unless you add **persisted queries** (a hash the gateway can treat as a cache key) or Automatic Persisted Queries in **[Apollo](https://www.apollographql.com/)**.
+
+**[GraphiQL](https://github.com/graphql/graphiql)**
+
+- **Primary function:** in-browser IDE against a GraphQL endpoint: schema docs, query editor, response. This is [Swagger UI](https://github.com/swagger-api/swagger-ui) for a graph.
+- **When we send you here:** exploring a schema you own. Never expose [GraphiQL](https://github.com/graphql/graphiql) with production credentials on the public internet.
+- **What it is not:** not a load test, not an authz audit.
+
+**[Apollo GraphQL](https://www.apollographql.com/)** (and managed **[AWS AppSync](https://aws.amazon.com/appsync/)**)
+
+- **Primary function:** a GraphQL server, client tooling, persisted queries, and (in Apollo) **federation** so several services expose one graph.
+- **When we send you here:** more than one team owns a slice of the graph, or you need managed GraphQL on [AWS](https://aws.amazon.com/).
+- **What they are not:** not a datastore. Federation is an API composition layer. If every field is a SQL join you have not designed, you bought a slower [PostgreSQL](https://www.postgresql.org/) with extra hops.
+
+**Working rule:** pick GraphQL when clients need many shapes of the same graph and you will invest in schema, batched resolvers, and authz. Do not pick it to avoid writing [OpenAPI](https://www.openapis.org/). A single public CRUD surface is still REST.
+
+### gRPC and RPC
+
+**RPC** (Remote Procedure Call) is "call this function on another process." The URL is not a resource; it is a verb: `CreateOrder`, `GetOrder`. **[JSON-RPC](https://www.jsonrpc.org/)** is RPC over JSON. **[Apache Thrift](https://thrift.apache.org/)** is an older multi-language RPC stack. **[gRPC](https://grpc.io/)** is the one you will draw for service-to-service work: [HTTP/2](https://www.rfc-editor.org/rfc/rfc9113) (or [HTTP/3](https://www.rfc-editor.org/rfc/rfc9114) in newer stacks), **[Protocol Buffers](https://protobuf.dev/)** as the IDL and codec, generated stubs, deadlines, and four call types.
+
+| Call type | Shape | Use |
+| --- | --- | --- |
+| Unary | one request, one response | The default. Looks like a function. |
+| Server streaming | one request, stream of responses | Subscribe, large result sets, tail a log. |
+| Client streaming | stream of requests, one response | Upload, aggregate. |
+| Bidirectional | both streams | Long-lived chats, collaborative editing — the real-time chapter owns the product; here it is a call type. |
+
+```mermaid
+flowchart TB
+  u[Unary: req then res]
+  ss[Server stream: req then many res]
+  cs[Client stream: many req then res]
+  bidi[Bidi: both streams]
+```
+
+*Four [gRPC](https://grpc.io/) call types. If you only needed unary JSON, you wanted REST or [Connect](https://connectrpc.com/), not a stream.*
+
+**Why teams pick gRPC:** compact binary payloads, strict protobuf contracts, first-class deadlines (`grpc-timeout`), generated clients in many languages, streaming without inventing a second protocol. **Why they regret it at the public edge:** browsers do not speak gRPC-on-HTTP/2 natively. You add **[gRPC-Gateway](https://grpc-ecosystem.github.io/grpc-gateway/)** (protobuf annotations → REST), **[gRPC-Web](https://github.com/grpc/grpc-web)** (a proxy), or **[Connect](https://connectrpc.com/)** (protobuf over plain HTTP/1.1 that browsers and `curl` can call). Load balancers must be L7-aware of [HTTP/2](https://www.rfc-editor.org/rfc/rfc9113); an [AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) that just forwards TCP will break many gRPC features (retries, multiplexing). Prefer [Envoy](https://www.envoyproxy.io/), [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) gRPC support, or a mesh.
+
+**Status** is not HTTP. [gRPC status codes](https://grpc.io/docs/guides/status-codes/) (`OK`, `INVALID_ARGUMENT`, `NOT_FOUND`, `ALREADY_EXISTS`, `RESOURCE_EXHAUSTED`, `UNAVAILABLE`, `DEADLINE_EXCEEDED`, …) live in the trailer. A gateway that translates to HTTP must keep that map stable ([Connect](https://connectrpc.com/) and [gRPC-Gateway](https://grpc-ecosystem.github.io/grpc-gateway/) publish one). `RESOURCE_EXHAUSTED` is your `429`. `UNAVAILABLE` is retryable; `INVALID_ARGUMENT` is not.
+
+**[Buf](https://buf.build/)**
+
+- **Primary function:** lint, breaking-change detection, and generate code from protobuf. The [Buf Schema Registry](https://buf.build/product/bsr) is a catalog of schemas.
+- **When we send you here:** more than one repo speaks protobuf. Breaking-change CI is the analog of [Spectral](https://stoplight.io/open-source/spectral) for [OpenAPI](https://www.openapis.org/).
+- **What it is not:** not a transport. You still run [gRPC](https://grpc.io/) or [Connect](https://connectrpc.com/).
+
+**[grpcurl](https://github.com/fullstorydev/grpcurl)**
+
+- **Primary function:** `curl` for gRPC: list services, call a method, see metadata. Reflection or a `.proto` on disk.
+- **When we send you here:** proving a method and a deadline the way [curl](https://curl.se/) proves REST.
+- **What it is not:** not a browser tool. Public partners still need a REST or Connect façade.
+
+Protobuf versioning is additive: new fields with new numbers, `reserved` for retired numbers, never reuse a field number, never change a type in place. That is the same compatibility rule as additive JSON, with a compiler that yells.
+
+**Working rule:** gRPC is the service-to-service default when both ends are yours and you will generate stubs. Public browsers and partners get REST or Connect. Write the call type and the deadline on the sketch.
+
+### REST vs GraphQL vs gRPC
+
+These are not rivals you rank. They are surfaces for different clients and different hops.
+
+| | REST | GraphQL | gRPC |
+| --- | --- | --- | --- |
+| Contract file | [OpenAPI](https://www.openapis.org/) | SDL | [Protocol Buffers](https://protobuf.dev/) |
+| Unit | Resource URL | Field tree | Procedure |
+| Typical codec | JSON | JSON (sometimes binary) | Protobuf |
+| Caching | HTTP GET, CDNs, [ETag](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag) | Hard without persisted queries | Hop-by-hop; not a CDN page cache |
+| Browsers | Native | Native HTTP | Needs [Connect](https://connectrpc.com/), [gRPC-Web](https://github.com/grpc/grpc-web), or a gateway |
+| Best fit | Public HTTP, partners, CRUD | Many client shapes of one graph | Service-to-service, streaming, strict types |
+| Failure | HTTP status | `errors[]` plus partial `data` | gRPC status in trailers |
+| Gateway story | Trivial | Need query allowlists / depth limits | HTTP/2-aware L7 |
+
+*Pick from the client and the hop, not from a blog post. A common production mix: REST at the public edge, gRPC inside the VPC, GraphQL only where a BFF would otherwise explode.*
+
+```mermaid
+flowchart TB
+  browser[Browser / partner] --> rest[REST + OpenAPI]
+  mobile[Mobile with many screens] --> gql[GraphQL]
+  svc[Service to service] --> grpc[gRPC + protobuf]
+  rest --> core[Domain services]
+  gql --> core
+  grpc --> core
+```
+
+*Three surfaces, one domain. The mistake is one surface for every client — or three surfaces for one client.*
+
+**How you choose on a sketch:**
+
+1. **One client, resource-shaped, cacheable reads** → REST.
+2. **Several clients that each need a different slice of a large graph**, and you will staff schema + DataLoader + field authz → GraphQL.
+3. **Internal, typed, latency-sensitive, maybe streaming** → gRPC (or Connect if you also want `curl`).
+4. **All three** is normal at scale. Document which client uses which. Do not translate every gRPC method into a REST URL "just in case."
+
+**Working rule:** name the client, then the surface. "We use GraphQL" is not a design. "iOS needs three REST round trips per screen, so a graph with batched resolvers" is.
+
+### API Gateways
+
+An **API gateway** is the reverse proxy from the previous chapter **plus API policy**: authentication, rate limits, API keys, request transformation, version routing, analytics, sometimes a developer portal. It is still L7. It is not where you hide a missing domain model.
+
+Where the last chapter's [NGINX](https://nginx.org/) terminated TLS and picked a target, the gateway also asks "is this client allowed to call this route at this rate, in this version?" Products: **[Amazon API Gateway](https://aws.amazon.com/api-gateway/)**, **[Azure API Management](https://azure.microsoft.com/products/api-management)**, **[Apigee](https://cloud.google.com/apigee)**, **[Kong](https://konghq.com/)**, **[Traefik](https://traefik.io/traefik/)**, **[KrakenD](https://www.krakend.io/)**, **[Emissary-ingress](https://github.com/emissary-ingress/emissary)**, **[Envoy](https://www.envoyproxy.io/)** (as a gateway, not only as a sidecar), plus [Cloudflare](https://www.cloudflare.com/) when the edge *is* the gateway ([Cloudflare API Shield](https://www.cloudflare.com/products/api-shield/)).
+
+| Hop | Job | Not its job |
+| --- | --- | --- |
+| Reverse proxy / L7 LB | TLS, host/path, health, spread | Quotas, API keys, developer portal |
+| API gateway | Authn plug-in, rate limit, API key, transform, version route, OpenAPI import | Business rules, datastore writes |
+| BFF | Per-client aggregation and shaping | Shared partner policy |
+
+**[Amazon API Gateway](https://aws.amazon.com/api-gateway/)**
+
+- **Primary function:** managed HTTP / REST / WebSocket APIs in front of [AWS Lambda](https://aws.amazon.com/lambda/), [Amazon Elastic Container Service](https://aws.amazon.com/ecs/), HTTP URLs, or [AWS Step Functions](https://aws.amazon.com/step-functions/). Usage plans, API keys, [AWS WAF](https://aws.amazon.com/waf/) attach, [OpenAPI](https://www.openapis.org/) import.
+- **When we send you here:** the front door is already on [AWS](https://aws.amazon.com/) and you want throttling and auth without running [Kong](https://konghq.com/).
+- **What it is not:** not cheap for huge, steady L7 PPS (compare a [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) plus [NGINX](https://nginx.org/)). Not a place to implement checkout.
+
+**[Kong](https://konghq.com/)** (and **[KrakenD](https://www.krakend.io/)** as the aggregator-shaped alternative)
+
+- **Primary function:** gateway with a plugin chain (auth, rate limit, transform, logging) in front of any upstream. [Kong](https://konghq.com/) is proxy + plugins; [KrakenD](https://www.krakend.io/) is a stateless aggregator you configure as a contract.
+- **When we send you here:** you need the same policy on VMs or [Kubernetes](https://kubernetes.io/) across clouds, or you are aggregating many backends in one response without a BFF process.
+- **What they are not:** not a substitute for [Envoy](https://www.envoyproxy.io/) inside a mesh. Gateway is the north-south door; mesh is east-west (Architectural Patterns later).
+
+**Working rule:** a gateway enforces the contract. It does not invent it. Business logic behind the gateway; policy on it. If the box is only TLS + round robin, you drew a load balancer — go back to Networking.
+
+#### Backend for Frontend
+
+A **Backend for Frontend (BFF)** is an API tailored to **one client** (web, iOS, Android, a TV app). Sam Newman describes the pattern in [Backends for Frontends](https://samnewman.io/patterns/architectural/bff/). The BFF aggregates domain services, shapes the payload the UI needs, and speaks the auth the client already has (cookie for the web app, token for the mobile app). It is the opposite of one public API that every client must squeeze through.
+
+```mermaid
+flowchart LR
+  web[Web app] --> bffWeb[Web BFF]
+  ios[iOS app] --> bffIos[iOS BFF]
+  partner[Partner] --> gw[API Gateway]
+  bffWeb --> orders[Orders]
+  bffWeb --> catalog[Catalog]
+  bffIos --> orders
+  bffIos --> catalog
+  gw --> orders
+  gw --> catalog
+```
+
+*Per-client BFFs plus a partner gateway. Domain services stay unaware of iOS screen density. Draw one BFF per client you are willing to staff.*
+
+**What a BFF is for:**
+
+- Kill chatty round trips without committing the public surface to [GraphQL](https://graphql.org/).
+- Translate cookies ↔ tokens so the browser never holds a long-lived service credential.
+- Version with the app: shipping iOS 14.2 can talk to `bff-ios` without bumping partner `/v1`.
+
+**What a BFF is not:** a second copy of every domain rule. If "apply discount" lives in the iOS BFF and the web BFF, you will disagree. Domain services own writes; BFFs own *shape*. A BFF that talks to sixteen services on every tap is a distributed monolith you will meet again in Architectural Patterns.
+
+A BFF can *be* a gateway route ([KrakenD](https://www.krakend.io/) aggregation, [Amazon API Gateway](https://aws.amazon.com/api-gateway/) HTTP integration) or a small service. The pattern is the per-client contract, not the SKU.
+
+**Working rule:** one BFF per client team you will actually staff. Partners stay on the public gateway. Domain writes do not fork into the BFF.
+
+### Webhooks
+
+A **webhook** is an HTTP callback **you** send when something happened: `POST` a signed JSON body to a URL the subscriber registered. You become the client. The subscriber becomes the server. That reversal is the design: their endpoint will be slow, down, or lying; you still have to deliver.
+
+```mermaid
+sequenceDiagram
+  participant API as Your API
+  participant Q as Outbox / queue
+  participant WH as Subscriber URL
+  API->>Q: persist event
+  Q->>WH: POST signed payload
+  alt 2xx
+    WH-->>Q: 200
+  else timeout or 5xx
+    Q->>WH: retry with backoff
+  end
+```
+
+*Persist, then push. A webhook fired only from the request handler is lost when that process dies. Queues are the next foundations chapter; here you only need an outbox so delivery is not "best effort in RAM."*
+
+**Contract you owe the subscriber (and that you demand when you *are* the subscriber):**
+
+- **Event type + version** in a header or in the body (`X-Event`, CloudEvents `type`). Breaking the payload is a new type, not a silent field change.
+- **Signature.** HMAC of the body with a shared secret, timestamp to prevent replay. **[Standard Webhooks](https://www.standardwebhooks.com/)** is the emerging header layout (`webhook-id`, `webhook-timestamp`, `webhook-signature`). **[CloudEvents](https://cloudevents.io/)** is the event envelope. **[AsyncAPI](https://www.asyncapi.com/)** is the spec file when the surface is events, the way [OpenAPI](https://www.openapis.org/) is for request/response.
+- **At-least-once delivery.** Retries will duplicate. The subscriber must be idempotent (next heading). You cannot promise exactly-once over HTTP.
+- **Timeouts and parallelism.** Two seconds, then retry. Fan-out that waits on the subscriber inside the user's POST will miss its own SLO.
+- **Secret URLs are not auth.** A unguessable URL leaks into logs. Sign the body.
+
+**[GitHub Webhooks](https://docs.github.com/en/webhooks)** is the documented shape to copy: event list, `X-Hub-Signature-256`, delivery retries, a redacted ping. Treat it as a spec example, not as a product pitch.
+
+**Working rule:** webhooks are outbound HTTP with a signature, an event type, retries, and an idempotent receiver. If you cannot name the retry budget, you do not have a webhook; you have a hope.
+
+### Idempotency in APIs
+
+**Idempotent** means doing the request N times has the same *resource* effect as doing it once. GET, PUT, and DELETE already claim this in [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110). POST and most GraphQL mutations do not. Networks retry. Mobile radios blip. Gateways retry on `503`. Without a key, a retried `POST /charges` is two charges.
+
+The **Idempotency-Key** pattern (documented clearly in [Stripe's idempotent requests](https://docs.stripe.com/api/idempotent_requests)): the client sends a unique key per *logical* attempt (UUID). The server stores the key plus the response. A replay with the same key and the same body returns the stored response. A replay with the same key and a *different* body is `409`.
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant API as API
+  participant S as Key store
+  C->>API: POST + Idempotency-Key
+  API->>S: lookup key
+  alt hit
+    S-->>API: stored response
+    API-->>C: replay exact status and body
+  else miss
+    API->>API: execute once
+    API->>S: store response TTL
+    API-->>C: 201
+  end
+```
+
+*The store is the contract. [Redis](https://redis.io/) with a TTL, a unique row in [PostgreSQL](https://www.postgresql.org/), or a conditional write in [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) all work. In-memory maps on one replica do not survive the retry landing on another replica.*
+
+**Design rules:**
+
+- **The client owns the key.** Generate it before the first POST, reuse it on retry, mint a new one for a new logical action. A gateway-generated key cannot collapse two client retries into one.
+- **TTL.** Long enough for the client's retry window (hours for payments, minutes for a search export). Forever is a leak.
+- **Hash the body.** Same key, different payload → conflict, not a second execute.
+- **PUT is already idempotent** if the URL identifies the resource. Do not add a key to paper over `POST /orders` when `PUT /orders/{id}` was the resource design.
+- **Exactly-once** is still an illusion (Distributed Systems). You are aiming for **exactly-once *effect*** with at-least-once delivery.
+
+**Working rule:** every public POST (and every GraphQL mutation that writes) names an idempotency key and a store. If the store is "the replica's RAM," you do not have idempotency.
+
+### Rate Limiting as an API Concern
+
+Rate limiting is how the API **refuses work on purpose** so one client cannot spend the whole SLO. Algorithms (token bucket, leaky bucket, sliding window) wait for Algorithms and Data Structures for System Design. This heading is **where the limit lives, what it keys on, and how the client is told**.
+
+**Where it sits:**
+
+| Layer | Product-shaped example | Sees |
+| --- | --- | --- |
+| Edge | [Cloudflare rate limiting](https://developers.cloudflare.com/waf/rate-limiting-rules/) | IP, TLS fingerprint, path — before your origin |
+| Gateway | [Amazon API Gateway throttling](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html), [Kong Rate Limiting](https://developer.konghq.com/plugins/rate-limiting/), [Envoy ratelimit](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/other_features/global_rate_limiting) | API key, route, usage plan |
+| Application | check in the handler, counter in [Redis](https://redis.io/) | User, tenant, a specific mutation |
+| Mesh | sidecar policy | East-west QPS you do not want one service to aim at another |
+
+Public abuse is an edge/gateway job. "This tenant may run 10 exports/hour" is an application job: the gateway does not know what an export is. Do both. Do not do *only* per-IP if your clients sit behind one corporate NAT (one IP, a thousand users, instant lockout).
+
+**The HTTP contract:**
+
+- **`429 Too Many Requests`** ([RFC 6585](https://www.rfc-editor.org/rfc/rfc6585)).
+- **`Retry-After`** (seconds or HTTP date). Clients that ignore it are why you also need a ban path.
+- **Headers that tell the truth:** many gateways emit `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. The IETF HTTPAPI [RateLimit header fields](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-ratelimit-headers) standardize `RateLimit-Limit` / `Remaining` / `Reset`. Pick one set in [OpenAPI](https://www.openapis.org/) and do not mix.
+
+**Keying dimensions** (often AND-ed):
+
+- IP — coarse, cheap, NAT-hostile.
+- API key / app — partner integrations.
+- User / tenant — product quotas.
+- Route — `POST /search` is more expensive than `GET /healthz`.
+- Resource — one hot object, not the whole API.
+
+**Working rule:** name the key, the layer, the `429` body, and `Retry-After`. A limit you cannot explain to a client is just an outage. Cheap checks at the edge; semantic quotas in the app; counters in [Redis](https://redis.io/) (or the gateway's own store), not in the request path's RAM.
+
+### Error Contracts and Backward Compatibility
+
+Clients parse errors with code. A string poem in `message` is for humans; a **stable `code`** is for branches (`order_not_found`, `idempotency_conflict`). HTTP status is the class; the body is the instance.
+
+**[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details** (obsoletes [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)) is the HTTP envelope: `Content-Type: application/problem+json`, with `type`, `title`, `status`, `detail`, `instance`, plus your extensions (`code`, `request_id`). Put `request_id` on every error so Monitoring and Observability can join logs later. Do not put stack traces, SQL, or internal hostnames in `detail`.
+
+| Change | Compatible? | What you do |
+| --- | --- | --- |
+| Add optional response field | Yes | Ship; old clients ignore it |
+| Add endpoint or query param with default | Yes | Ship |
+| Add enum value | Usually | Old clients must have an `unknown` branch |
+| Remove / rename field | No | New version or a sunset period |
+| Change field type | No | New version |
+| Change status for the same situation | No | You just broke every retry policy |
+| Tighten validation | No | Old payloads start failing; version or warn first |
+| New error `code` | Yes | Document it; old clients take the `status` fallback |
+
+**Deprecation is a protocol, not a Slack message.** `Deprecation` and `Sunset` headers ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)), a changelog next to the [OpenAPI](https://www.openapis.org/) file, both versions live, metrics on `/v1` until they are actually zero. A version nobody can discover is not compatibility.
+
+**Contract tests** keep you honest: **[Pact](https://docs.pact.io/)** between a client team and a provider; **[Spectral](https://stoplight.io/open-source/spectral)** / **[Buf](https://buf.build/)** breaking-change rules in CI so a renamed field cannot merge. [OpenAPI Generator](https://openapi-generator.tech/) can emit clients — generated clients still need a versioned spec, or you have generated breakage.
+
+**Working rule:** status + stable `code` + `request_id`, in a Problem Details body for HTTP. Compatible means old clients keep working without a release. Everything else is a new version with a sunset.
+
+### Summary: API Design
+
+An API is a **contract**: audience, surface, failure, replay, shape, quota — written in [OpenAPI](https://www.openapis.org/), [GraphQL](https://graphql.org/) SDL, or [Protocol Buffers](https://protobuf.dev/), exercised with [curl](https://curl.se/) / [Bruno](https://www.usebruno.com/), linted with [Spectral](https://stoplight.io/open-source/spectral) or [Buf](https://buf.build/). **REST** is resources, verbs, and status ([RFC 9110](https://www.rfc-editor.org/rfc/rfc9110)); paginate with opaque cursors; version in the URL when you must break. **GraphQL** is one graph for many client shapes, with batched resolvers ([DataLoader](https://github.com/graphql/dataloader)) and field authz — not a datastore ([Apollo](https://www.apollographql.com/), [AWS AppSync](https://aws.amazon.com/appsync/)). **gRPC** is typed RPC on HTTP/2 for service-to-service; browsers get [Connect](https://connectrpc.com/) or REST. **Gateways** ([Amazon API Gateway](https://aws.amazon.com/api-gateway/), [Kong](https://konghq.com/), [Apigee](https://cloud.google.com/apigee)) enforce policy; **BFFs** ([Backends for Frontends](https://samnewman.io/patterns/architectural/bff/)) shape per client. **Webhooks** are signed outbound HTTP ([Standard Webhooks](https://www.standardwebhooks.com/), [CloudEvents](https://cloudevents.io/)) with retries. **Idempotency keys** plus a store ([Redis](https://redis.io/), [PostgreSQL](https://www.postgresql.org/), [Amazon DynamoDB](https://aws.amazon.com/dynamodb/)) make POST safe to retry. **Rate limits** name a key, a layer, and `429` + `Retry-After`. **Errors** are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) plus a stable code; compatibility is additive or a sunset. Draw the contract in [Excalidraw](https://excalidraw.com/). Next is **Databases and Storage**.

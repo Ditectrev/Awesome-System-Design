@@ -1463,7 +1463,431 @@
 * L4 [NLB](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) vs L7 [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Clustering ≠ load balancing; checksums ≠ TLS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Draw it in [Excalidraw](https://excalidraw.com/). Next: API Design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## API Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## API Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The contract the wire hops carry <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Audience, surface, failure, replay, shape, quota <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Artifacts: [OpenAPI](https://www.openapis.org/), [GraphQL](https://graphql.org/) SDL, [Protocol Buffers](https://protobuf.dev/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Tools-heavy; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw it in [Excalidraw](https://excalidraw.com/) before a product logo <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter: Databases and Storage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## API Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Client | → | Gateway | → | Service | → | Datastore |
+| --- | --- | --- | --- | --- | --- | --- |
+| speaks the contract |  | enforces policy |  | implements |  | state |
+
+*Contract in the middle — [OpenAPI](https://www.openapis.org/) / SDL / protobuf — not a hop you skip.*
+
+---
+
+### What an API Must Make Obvious <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### What an API Must Make Obvious <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Audience: browser, mobile, partner, or another service <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Surface: resources, a graph, or procedures <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Authn / authz — Security chapter later; unauthenticated GET is a choice <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Failure: status + stable code + retry story ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Replay, pagination, version, quota <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What an API Must Make Obvious <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Artifact in source control, or you only have a server <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [OpenAPI](https://www.openapis.org/) + [Swagger UI](https://github.com/swagger-api/swagger-ui) / [Swagger Editor](https://editor.swagger.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Lint: [Spectral](https://stoplight.io/open-source/spectral), [Redocly CLI](https://redocly.com/docs/cli) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Exercise: [curl](https://curl.se/), [Bruno](https://www.usebruno.com/), [Insomnia](https://insomnia.rest/), [Postman](https://www.postman.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Pact](https://docs.pact.io/) when two teams cannot share a process <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [JSON Schema](https://json-schema.org/) already lives inside [OpenAPI](https://www.openapis.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### REST <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### REST <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Fielding dissertation, chapter 5](https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Uniform interface: [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) methods and status <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Production REST ≈ HTTP + JSON + resource URLs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [MDN HTTP](https://developer.mozilla.org/en-US/docs/Web/HTTP); optional [JSON:API](https://jsonapi.org/), [HAL](https://datatracker.ietf.org/doc/html/draft-kelly-json-hal) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Default public API; GraphQL and gRPC must win on an axis <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Nouns in the URL, verbs in the method — `POST /deleteOrder` is RPC <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Resources, Verbs, and Status Contracts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Resources, Verbs, and Status Contracts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Method | Job | Idempotent? | Success |
+| --- | --- | --- | --- |
+| `GET` / `HEAD` | Read | Yes (safe) | `200` / `304` |
+| `POST` | Create / action | No | `201` + `Location`, or `202` |
+| `PUT` | Replace | Yes | `200` / `204` / `201` |
+| `PATCH` | Partial ([RFC 5789](https://www.rfc-editor.org/rfc/rfc5789)) | Only if designed | `200` / `204` |
+| `DELETE` | Remove | Yes | `204` |
+
+*[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110). Status is the contract, not a debug string.*
+
+---
+
+#### Resources, Verbs, and Status Contracts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* `4xx` — client must change something (`401` vs `403`, `409`, `429`) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `5xx` — this hop failed (`503` + `Retry-After` vs `500` bug) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Create that returns `200` with an id in JSON is not a contract <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Prove it with [curl](https://curl.se/) (`-i`, `-X`, `-H`) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If you must parse JSON to learn "it failed," status is missing <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Pagination, Filtering, and Versioning <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Pagination, Filtering, and Versioning <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Style | How | Cost |
+| --- | --- | --- |
+| Offset / limit | `offset=40` | Deep pages; rows drift under writes |
+| Page number | `page=3` | Same drift |
+| Cursor / keyset | opaque `cursor=` | No random access; stable sort |
+| Link headers | [RFC 8288](https://www.rfc-editor.org/rfc/rfc8288) | Gateways must not strip them |
+
+*Prefer opaque cursors on any public list.*
+
+---
+
+#### Pagination, Filtering, and Versioning <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Version | Honest when |
+| --- | --- |
+| `/v1/orders` | Public HTTP; gateways and [OpenAPI](https://www.openapis.org/) |
+| `Accept` media type | One URL, many representations |
+| Additive only | One client you ship |
+
+*Compatible: add a field. Breaking: rename, remove, change type, change status. Sunset with [RFC 8594](https://www.rfc-editor.org/rfc/rfc8594).*
+
+---
+
+#### Pagination, Filtering, and Versioning <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Named query params; never `ORDER BY` in the query string <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Arbitrary nested filters → consider [GraphQL](https://graphql.org/), not a REST query language <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not bump `/v2` because you added a field <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Offset pages drift; cursors stay after the last id <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### GraphQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### GraphQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Query language + type system; usually `POST /graphql` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Spec: [graphql.org](https://graphql.org/learn/); transport: [GraphQL over HTTP](https://http-spec.graphql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Solves over-fetching and under-fetching <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Does not replace TLS, a gateway, or auth headers <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### GraphQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| REST | GraphQL |
+| --- | --- |
+| `GET /users/1` | one `query { user { orders { items } } }` |
+| `GET /users/1/orders` |  |
+| `GET /orders/9/items` |  |
+
+*Three round trips vs one. The N+1 moves into resolvers — [DataLoader](https://github.com/graphql/dataloader).*
+
+---
+
+### GraphQL <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Schema is the contract; mutations still need idempotency <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Authz is per field — `user { ssn }` is the client's next question <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Caching needs persisted queries ([Apollo](https://www.apollographql.com/)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [GraphiQL](https://github.com/graphql/graphiql) explores; never with prod credentials <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Apollo](https://www.apollographql.com/) / [AWS AppSync](https://aws.amazon.com/appsync/) — not a datastore <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Single public CRUD is still REST <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### gRPC and RPC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### gRPC and RPC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* RPC = call a function on another process <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [JSON-RPC](https://www.jsonrpc.org/); [Apache Thrift](https://thrift.apache.org/) is the older stack <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [gRPC](https://grpc.io/): [HTTP/2](https://www.rfc-editor.org/rfc/rfc9113) + [Protocol Buffers](https://protobuf.dev/) + generated stubs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Deadlines (`grpc-timeout`) are first-class <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### gRPC and RPC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Call type | Shape |
+| --- | --- |
+| Unary | one req, one res |
+| Server streaming | one req, many res |
+| Client streaming | many req, one res |
+| Bidirectional | both streams |
+
+*If you only needed unary JSON, you wanted REST or [Connect](https://connectrpc.com/).*
+
+---
+
+### gRPC and RPC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Browsers: [gRPC-Gateway](https://grpc-ecosystem.github.io/grpc-gateway/), [gRPC-Web](https://github.com/grpc/grpc-web), or [Connect](https://connectrpc.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L7 HTTP/2: [Envoy](https://www.envoyproxy.io/), [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) — not a TCP [NLB](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Status in trailers: [gRPC status codes](https://grpc.io/docs/guides/status-codes/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Buf](https://buf.build/) lints protobuf; [grpcurl](https://github.com/fullstorydev/grpcurl) is curl for gRPC <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Additive fields, `reserved` numbers, never reuse a field number <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### REST vs GraphQL vs gRPC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### REST vs GraphQL vs gRPC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | REST | GraphQL | gRPC |
+| --- | --- | --- | --- |
+| Contract | [OpenAPI](https://www.openapis.org/) | SDL | protobuf |
+| Unit | Resource URL | Field tree | Procedure |
+| Codec | JSON | JSON | Protobuf |
+| Cache | HTTP GET, CDN | Hard | Not a page cache |
+| Browsers | Native | Native | Connect / gateway |
+| Fit | Public CRUD | Many client shapes | Service-to-service |
+
+---
+
+### REST vs GraphQL vs gRPC <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Browser / partner | → | REST + [OpenAPI](https://www.openapis.org/) |
+| --- | --- | --- |
+| Mobile, many screens | → | [GraphQL](https://graphql.org/) |
+| Service to service | → | [gRPC](https://grpc.io/) |
+|  |  | all three → one domain |
+
+*Name the client, then the surface. "We use GraphQL" is not a design.*
+
+---
+
+### API Gateways <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### API Gateways <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Reverse proxy **plus** API policy <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Authn, rate limits, API keys, transform, version routing, analytics <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not where you hide a missing domain model <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon API Gateway](https://aws.amazon.com/api-gateway/), [Azure API Management](https://azure.microsoft.com/products/api-management), [Apigee](https://cloud.google.com/apigee) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kong](https://konghq.com/), [Traefik](https://traefik.io/traefik/), [KrakenD](https://www.krakend.io/), [Emissary-ingress](https://github.com/emissary-ingress/emissary), [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Edge as gateway: [Cloudflare API Shield](https://www.cloudflare.com/products/api-shield/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### API Gateways <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Hop | Job | Not its job |
+| --- | --- | --- |
+| Reverse proxy / L7 LB | TLS, path, health, spread | Quotas, API keys, portal |
+| API gateway | Policy on the contract | Business rules, writes |
+| BFF | Per-client shape | Shared partner policy |
+
+---
+
+### API Gateways <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Amazon API Gateway](https://aws.amazon.com/api-gateway/): [Lambda](https://aws.amazon.com/lambda/), [ECS](https://aws.amazon.com/ecs/), [WAF](https://aws.amazon.com/waf/), [OpenAPI](https://www.openapis.org/) import <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not cheap for huge steady L7 — compare [ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) + [NGINX](https://nginx.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kong](https://konghq.com/) = plugins; [KrakenD](https://www.krakend.io/) = aggregator contract <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* North-south door; mesh is east-west (later chapter) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If the box is only TLS + round robin, you drew a load balancer <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Backend for Frontend <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Backend for Frontend <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Web app | → | Web BFF | → | Orders / Catalog |
+| --- | --- | --- | --- | --- |
+| iOS app | → | iOS BFF | → | Orders / Catalog |
+| Partner | → | API Gateway | → | Orders / Catalog |
+
+*[Backends for Frontends](https://samnewman.io/patterns/architectural/bff/) — one BFF per client you will staff.*
+
+---
+
+#### Backend for Frontend <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Aggregates and shapes; speaks the client's auth (cookie vs token) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Kills chatty round trips without committing the public surface to [GraphQL](https://graphql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Domain writes stay in domain services — do not fork discount logic <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Can be a service or a [KrakenD](https://www.krakend.io/) / [Amazon API Gateway](https://aws.amazon.com/api-gateway/) route <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Sixteen services on every tap is a distributed monolith <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Webhooks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Webhooks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* You become the HTTP client; the subscriber is the server <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Persist, then push — outbox / queue, not RAM <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Event type + version; breaking payload = new type <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Sign the body: [Standard Webhooks](https://www.standardwebhooks.com/), envelope: [CloudEvents](https://cloudevents.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Spec file when the surface is events: [AsyncAPI](https://www.asyncapi.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Webhooks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Your API | → | Outbox | → | Subscriber URL |
+| --- | --- | --- | --- | --- |
+| persist event |  | POST signed payload |  | `2xx` or retry with backoff |
+
+*At-least-once. Receiver must be idempotent. Copy the shape from [GitHub Webhooks](https://docs.github.com/en/webhooks).*
+
+---
+
+### Idempotency in APIs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Idempotency in APIs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* GET / PUT / DELETE already claim it in [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* POST and GraphQL mutations do not — radios and gateways retry <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Client sends `Idempotency-Key` ([Stripe idempotent requests](https://docs.stripe.com/api/idempotent_requests)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Same key + same body → stored response; same key + different body → `409` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Idempotency in APIs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Client | → | API | → | Key store |
+| --- | --- | --- | --- | --- |
+| POST + key |  | lookup |  | hit: replay / miss: execute once |
+
+*Store: [Redis](https://redis.io/) TTL, [PostgreSQL](https://www.postgresql.org/) unique row, [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) conditional write — not replica RAM.*
+
+---
+
+### Idempotency in APIs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Client owns the key; mint it before the first POST <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* TTL covers the retry window; forever is a leak <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Prefer `PUT /orders/{id}` over a keyed `POST /orders` when the URL is the resource <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Exactly-once effect, at-least-once delivery (Distributed Systems later) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Rate Limiting as an API Concern <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Rate Limiting as an API Concern <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Layer | Example | Sees |
+| --- | --- | --- |
+| Edge | [Cloudflare rate limiting](https://developers.cloudflare.com/waf/rate-limiting-rules/) | IP, path |
+| Gateway | [API Gateway throttling](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-request-throttling.html), [Kong](https://developer.konghq.com/plugins/rate-limiting/), [Envoy](https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/other_features/global_rate_limiting) | API key, route |
+| Application | counter in [Redis](https://redis.io/) | User, tenant, mutation |
+| Mesh | sidecar | East-west QPS |
+
+*Algorithms wait for a later chapter. Here: where, key, `429`.*
+
+---
+
+### Rate Limiting as an API Concern <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* HTTP: `429` ([RFC 6585](https://www.rfc-editor.org/rfc/rfc6585)) + `Retry-After` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Headers: `X-RateLimit-*` or IETF [RateLimit fields](https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-ratelimit-headers) — pick one <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Key on IP (NAT-hostile), API key, user/tenant, route, resource <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cheap checks at the edge; semantic quotas in the app <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A limit you cannot explain to a client is just an outage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Error Contracts and Backward Compatibility <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Error Contracts and Backward Compatibility <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) Problem Details (`application/problem+json`) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Status is the class; stable `code` is for branches <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `request_id` on every error; no stack traces in `detail` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Compatible: add optional field, endpoint, enum the old client ignores <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Breaking: rename, remove, change type, change status, tighten validation <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Error Contracts and Backward Compatibility <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Deprecation is a protocol: `Sunset` ([RFC 8594](https://www.rfc-editor.org/rfc/rfc8594)), changelog, both versions live <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Metrics on `/v1` until they are actually zero <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Pact](https://docs.pact.io/); [Spectral](https://stoplight.io/open-source/spectral) / [Buf](https://buf.build/) breaking-change CI <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [OpenAPI Generator](https://openapi-generator.tech/) still needs a versioned spec <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Old clients keep working without a release, or it is a new version <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: API Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: API Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Contract: [OpenAPI](https://www.openapis.org/), [GraphQL](https://graphql.org/) SDL, or protobuf <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* REST: resources, verbs, status; cursor pagination; URL version when you break <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* GraphQL: many shapes + [DataLoader](https://github.com/graphql/dataloader); not a datastore <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* gRPC: service-to-service; browsers get [Connect](https://connectrpc.com/) or REST <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Gateway enforces; BFF shapes per client <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: API Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Webhooks: signed outbound HTTP, retries, idempotent receiver <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Idempotency-Key + store ([Redis](https://redis.io/), [PostgreSQL](https://www.postgresql.org/), [DynamoDB](https://aws.amazon.com/dynamodb/)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Rate limits: key, layer, `429` + `Retry-After` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Errors: [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) + stable code; additive or sunset <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw it in [Excalidraw](https://excalidraw.com/). Next: Databases and Storage <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
         </textarea>
+
       </section>
     </div>
   </div>
