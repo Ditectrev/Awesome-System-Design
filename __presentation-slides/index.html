@@ -2500,6 +2500,544 @@ flowchart TB
 * Replication: topology + sync vs async (RPO) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Shard key that ages; router ([Vitess](https://vitess.io/), [Citus](https://www.citusdata.com/)); pooling is not sharding <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Draw it in [Excalidraw](https://excalidraw.com/). Next: Caching and Content Delivery Networks <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Caching and Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Caching and Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The record was the last chapter — this chapter is **derived copies** <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No [CodeSandboxes](https://codesandbox.io/) — draw the copies in [Excalidraw](https://excalidraw.com/) first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name a product only when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter: Message Queues, Streams, and Real-Time Communication <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Caching and Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  client[Client]
+  cdn[CDN / edge]
+  app[App]
+  local[Process cache]
+  redis[(Distributed cache)]
+  db[(System of record)]
+  client --> cdn
+  cdn --> app
+  app --> local
+  app --> redis
+  redis --> db
+```
+
+*Every arrow to the right is slower. Every arrow to the left can be stale. A cache is not a smaller database.*
+
+---
+
+### Why Caching Shows Up in Almost Every Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Why Caching Shows Up in Almost Every Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* **Distance** — light in fiber; a PoP buys 1 ms instead of 150 ms <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* **Work** — a JOIN, a render, a thumbnail you already paid for <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* **Fan-in** — one celebrity key the origin cannot take 100 000 times <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Caching shows up because physics and money do — not a [Redis](https://redis.io/) checklist <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Why Caching Shows Up in Almost Every Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph cost [What a miss pays]
+    cpu[CPU / JOIN / render]
+    disk[Disk / SSD]
+    wan[WAN round trip]
+  end
+  subgraph save [What a hit skips]
+    hit[GET from memory or edge]
+  end
+```
+
+*If you cannot name which of distance, work, or fan-in you are buying, you are decorating the sketch.*
+
+---
+
+### Why Caching Shows Up in Almost Every Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+**[Redis](https://redis.io/)** — default application cache in this book
+
+* Hosted: [Amazon ElastiCache](https://aws.amazon.com/elasticache/), [Memorystore](https://cloud.google.com/memorystore), [Azure Managed Redis](https://azure.microsoft.com/products/managed-redis) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Open fork: [Valkey](https://valkey.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not the system of record for money <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Not a CDN, not a replacement for an index <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Cache Hits, Misses, and Stampede <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Cache Hits, Misses, and Stampede <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant A as App
+  participant R as Cache
+  participant D as Origin
+  C->>A: GET item 9
+  A->>R: GET item:9
+  alt hit
+    R-->>A: value
+  else miss
+    A->>D: SELECT
+    A->>R: SET TTL
+  end
+```
+
+*Cache-aside (lazy loading). The application owns the fill. Hit ratio is a **layer** metric.*
+
+---
+
+### Cache Hits, Misses, and Stampede <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant W1 as Worker 1
+  participant W2 as Worker 2
+  participant WN as Worker N
+  participant R as Cache
+  participant D as Origin
+  W1->>R: GET home
+  W2->>R: GET home
+  WN->>R: GET home
+  R-->>W1: miss
+  R-->>W2: miss
+  R-->>WN: miss
+  W1->>D: render
+  W2->>D: render
+  WN->>D: render
+```
+
+*Stampede (dogpile). One expiry, N identical origin loads. The cache was empty; the fill protocol failed.*
+
+---
+
+### Cache Hits, Misses, and Stampede <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Control | What it does |
+| --- | --- |
+| Coalesce / [singleflight](https://pkg.go.dev/golang.org/x/sync/singleflight) / [groupcache](https://github.com/golang/groupcache) | One fill; waiters share |
+| Lock on miss | [Redis](https://redis.io/) `SET NX EX`; losers wait or serve stale |
+| Stale-while-revalidate | [RFC 5861](https://www.rfc-editor.org/rfc/rfc5861) / [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) |
+| TTL jitter / XFetch | Keys do not expire together |
+| Negative caching | Cache "not found" so bots do not hammer origin |
+
+---
+
+### Cache Hits, Misses, and Stampede <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Cold miss — never filled; warm if predictable <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Capacity miss — eviction; working set does not fit <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Freshness miss — TTL / invalidation working as designed <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Negative miss — you did not cache 404 <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A miss without a fill protocol is a stampede waiting for a deploy <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Where to Cache <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Where to Cache <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  browser[Browser]
+  cdn[CDN PoP]
+  proxy[Reverse proxy]
+  l1[Process / L1]
+  l2[Distributed cache]
+  buf[DB buffer pool]
+  disk[(Durable store)]
+  browser --> cdn --> proxy --> l1 --> l2 --> buf --> disk
+```
+
+*A hit on the left never reaches the right. Invalidation travels the other way — or TTLs are short enough that you do not care.*
+
+---
+
+### Where to Cache <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Pick the **leftmost** layer that can still be correct <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Public identical bytes → CDN <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Per-user JSON → application cache with the user in the key <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* The database buffer pool is a gift, not a product box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Client, CDN, Application, and Database Caches <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Client, CDN, Application, and Database Caches <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Layer | Policy | Products |
+| --- | --- | --- |
+| Client | [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111) `Cache-Control`, `ETag` | Browser, service worker |
+| CDN / edge | Same headers + vendor cache key + purge | [CloudFront](https://aws.amazon.com/cloudfront/), [Cloudflare](https://www.cloudflare.com/), [Fastly](https://www.fastly.com/), [Akamai](https://www.akamai.com/), [Cloud CDN](https://cloud.google.com/cdn), [Front Door](https://azure.microsoft.com/products/frontdoor) |
+| Application | Key + TTL + invalidation | [Redis](https://redis.io/), [Memcached](https://memcached.org/), [Caffeine](https://github.com/ben-manes/caffeine), [Hazelcast](https://hazelcast.com/) |
+| Database | Engine internals / sidecar | [PostgreSQL](https://www.postgresql.org/) shared buffers, [DAX](https://aws.amazon.com/dynamodb/dax/) |
+
+---
+
+#### Client, CDN, Application, and Database Caches <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant O as Origin
+  B->>O: GET /app.a1b2.js
+  O-->>B: 200 immutable
+  Note over B: later, same URL — no network
+  B->>O: GET /api/me If-None-Match
+  O-->>B: 304
+```
+
+*Fingerprinted static files should never revalidate until the URL changes. Personalized JSON may revalidate every time. `Vary: Cookie` disables sharing.*
+
+---
+
+#### Client, CDN, Application, and Database Caches <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Reverse proxy: [Varnish](https://varnish-cache.org/), [nginx `proxy_cache`](https://nginx.org/en/docs/http/ngx_http_proxy_module.html#proxy_cache), [Traffic Server](https://trafficserver.apache.org/), [Squid](http://www.squid-cache.org/), [HAProxy](https://www.haproxy.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L1: [Caffeine](https://github.com/ben-manes/caffeine) (W-TinyLFU), [Guava Cache](https://github.com/google/guava/wiki/CachesExplained), [Ehcache](https://www.ehcache.org/) — not shared across instances <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* L2: [Redis](https://redis.io/), [Valkey](https://valkey.io/), [Memcached](https://memcached.org/), [Dragonfly](https://www.dragonflydb.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hosted: [ElastiCache](https://aws.amazon.com/elasticache/), [MemoryDB](https://aws.amazon.com/memorydb/), [Memorystore](https://cloud.google.com/memorystore), [Azure Managed Redis](https://azure.microsoft.com/products/managed-redis) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Memcached](https://memcached.org/): slabs, no persistence; a reboot is empty — design for it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Write-Through, Write-Around, and Write-Back <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Write-Through, Write-Around, and Write-Back <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph through [Write-through]
+    a1[App] --> c1[Cache] --> d1[DB]
+  end
+  subgraph around [Write-around]
+    a2[App] --> d2[DB]
+    a2 -.-> c2[Cache]
+  end
+  subgraph back [Write-back]
+    a3[App] --> c3[Cache]
+    c3 -.-> d3[DB]
+  end
+```
+
+*Who is updated on a write, and in what order. Wrong order is a stale read that looks like a heisenbug.*
+
+---
+
+### Write-Through, Write-Around, and Write-Back <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Policy | On write | Use |
+| --- | --- | --- |
+| Write-through | Cache **and** origin | [DAX](https://aws.amazon.com/dynamodb/dax/) item gets that must not be stale |
+| Write-around | Origin; skip or `DEL` cache | Write-heavy keys you would evict anyway |
+| Write-back | Cache first, origin later | RPO you can say — **not money** |
+| Cache-aside + invalidate | Origin, then `DEL` + TTL | **Default in this book** |
+
+---
+
+### Write-Through, Write-Around, and Write-Back <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant A as App
+  participant D as Origin
+  participant R as Cache
+  A->>D: UPDATE item 9
+  D-->>A: ok
+  A->>R: DEL item:9
+```
+
+*`DEL` is safer than writer `SET` when two writers race. A reader can still fill the old row after the delete — version the value or accept a short TTL.*
+
+---
+
+### Eviction Policies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Eviction Policies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Policy | Victim | Weakness |
+| --- | --- | --- |
+| LRU | Idle longest | One scan pollutes |
+| LFU | Lowest hit count | New keys look cold |
+| FIFO / random | Oldest / luck | Ignores popularity |
+| TinyLFU / W-TinyLFU | Admission filter + LRU ([Caffeine](https://github.com/ben-manes/caffeine), [paper](https://arxiv.org/abs/1512.00727)) | You take the library's word |
+| TTL / volatile-* | Expired, or LRU among TTL keys | Keys without TTL pin memory |
+
+---
+
+### Eviction Policies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  set[SET]
+  full{Full?}
+  admit{Admit?}
+  victim[Evict]
+  store[Store]
+  set --> full
+  full -->|no| store
+  full -->|yes| admit
+  admit -->|yes| victim --> store
+  admit -->|no| drop[Drop]
+```
+
+*Admission ≠ eviction. TinyLFU may refuse a one-hit-wonder. LRU always stores and always evicts someone.*
+
+---
+
+### Eviction Policies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Redis `maxmemory-policy`](https://redis.io/docs/latest/develop/reference/eviction/): `allkeys-lru` / `allkeys-lfu` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `noeviction` on a cache is a production incident <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Memcached](https://memcached.org/) slab LRU: a bad size mix evicts while another slab is empty <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cap **bytes**, not just key count — a 20 MB row belongs on [Amazon S3](https://aws.amazon.com/s3/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Eviction is not invalidation — a victim can still be correct <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Distributed Cache and Hot Keys <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Distributed Cache and Hot Keys <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  app1[App]
+  app2[App]
+  n0[(node 0)]
+  n1[(node 1)]
+  n2[(node 2)]
+  app1 -->|hash user:9| n1
+  app2 -->|hash user:9| n1
+```
+
+*Every instance must agree on the map. [Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/) `MOVED` / `ASK`. Consistent hashing later; modulo `N` is a hostage.*
+
+---
+
+### Distributed Cache and Hot Keys <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/) / Cluster replicas / [ElastiCache](https://aws.amazon.com/elasticache/) Multi-AZ <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* After failover some slots may still be **empty** — origin must survive that <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fail open to origin (shed load) vs fail closed (session store) — pick on purpose <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [FLUSHALL](https://redis.io/commands/flushall/) is a stampede you scheduled, not invalidation <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Namespace + version on keys — not a global flush on deploy <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Distributed Cache and Hot Keys <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  clients[Many readers]
+  n[(one cache node)]
+  origin[(origin)]
+  clients --> n --> origin
+```
+
+*Hot key = hot partition. One celebrity profile, one viral object, one global config. CDNs absorb this only for public HTTP.*
+
+---
+
+### Distributed Cache and Hot Keys <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Control | Cost |
+| --- | --- |
+| L1 in front of L2 ([Caffeine](https://github.com/ben-manes/caffeine)) | Stale per instance |
+| Replicate the hot value | Extra memory; invalidation fans out |
+| Split the key (`likes:9:{0..N}`) | Read must assemble |
+| CDN for public bytes | Only shareable GET |
+| Isolate the whale | Operational special case |
+
+*Cache key: `{entity}:{id}:{representation}:{version}` plus locale / role. Secrets do not belong in keys.*
+
+---
+
+### Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  u1[User FRA]
+  u2[User IAD]
+  u3[User SIN]
+  fra[PoP FRA]
+  iad[PoP IAD]
+  sin[PoP SIN]
+  origin[Origin]
+  u1 --> fra
+  u2 --> iad
+  u3 --> sin
+  fra --> origin
+  iad --> origin
+  sin --> origin
+```
+
+*Hits never leave the PoP. Misses and purges still cost origin. A CDN is a reverse-proxy cache with a global footprint.*
+
+---
+
+### Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Cache key: host, path, chosen query params, chosen headers <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* TLS at the edge; origin access to [Amazon S3](https://aws.amazon.com/s3/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Collapse concurrent misses; **origin shield** so a viral object is one origin GET <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Edge compute: [Cloudflare Workers](https://workers.cloudflare.com/), [CloudFront Functions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-functions.html) / [Lambda@Edge](https://aws.amazon.com/lambda/edge/), [Fastly Compute](https://www.fastly.com/products/compute) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Purge: URL, wildcard, [surrogate keys](https://www.fastly.com/documentation/guides/full-site-delivery/purging/working-with-surrogate-keys/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Amazon CloudFront](https://aws.amazon.com/cloudfront/) — AWS origins, signed cookies, origin shield <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Cloudflare](https://www.cloudflare.com/) — DNS + CDN + WAF + [Workers](https://workers.cloudflare.com/); [R2](https://www.cloudflare.com/developer-platform/products/r2/) origin <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Fastly](https://www.fastly.com/) — VCL, instant purge, surrogate keys <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Akamai](https://www.akamai.com/) — footprint, media, enterprise <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Google Cloud CDN](https://cloud.google.com/cdn) / [Media CDN](https://cloud.google.com/media-cdn); [Azure Front Door](https://azure.microsoft.com/products/frontdoor) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* `Cache-Control` still wins until the vendor console overrides it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* `private` / `Set-Cookie` must not land on a shared PoP <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Signed URLs: a private [S3](https://aws.amazon.com/s3/) object can still use the edge <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A CDN logo without `Cache-Control` is hope <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Push CDNs vs Pull CDNs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Push CDNs vs Pull CDNs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph pull [Pull]
+    pub1[Publish to origin]
+    miss[PoP miss GET origin]
+  end
+  subgraph push [Push]
+    pub2[Upload to CDN]
+    hit[PoP already has object]
+  end
+```
+
+*Pull is the default: origin is truth; first reader in a PoP pays a miss. Push: a forgotten upload is a 404, not a lazy fill.*
+
+---
+
+#### Push CDNs vs Pull CDNs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  p1[PoP]
+  p2[PoP]
+  p3[PoP]
+  shield[Origin shield]
+  origin[Origin]
+  p1 --> shield
+  p2 --> shield
+  p3 --> shield
+  shield --> origin
+```
+
+*[CloudFront Origin Shield](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/origin-shield.html) (and cousins at [Cloudflare](https://www.cloudflare.com/) / [Fastly](https://www.fastly.com/)). N PoPs × a new object must not be N origin GETs.*
+
+---
+
+#### Push CDNs vs Pull CDNs <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | Pull | Push |
+| --- | --- | --- |
+| Truth | Origin ([S3](https://aws.amazon.com/s3/), app) | What you ingested |
+| First reader | Miss + origin GET | Hit if uploaded |
+| Use | Sites, APIs, buckets — most sketches | Pre-positioned media, patches |
+| Origin down | Hits still serve until TTL | New objects missing everywhere |
+
+---
+
+#### What a CDN Does Not Solve <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### What a CDN Does Not Solve <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  q{Public, GET, identical for this cache key?}
+  q -->|yes| cdn[CDN + Cache-Control + purge]
+  q -->|personalized GET| app[App cache, user in the key]
+  q -->|write / authz / money| origin[Origin, no shared cache]
+```
+
+*The decision is the response, not the vendor. `/api/me` on a CDN without the user in the key is a leak or a miss.*
+
+---
+
+#### What a CDN Does Not Solve <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Does not replace origin — POST, WebSockets, signed-cookie misses still land <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Does not make personalized HTML globally shareable <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Does not make a 2 s JOIN fast on a miss <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Does not replace authz — signed URLs expire; they do not un-share a screenshot <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Does not replace [Redis](https://redis.io/) or a database <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Does not absorb every Layer-7 POST flood ([AWS Shield](https://aws.amazon.com/shield/) helps; rate limits still required) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Caching and Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Caching and Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Derived copy: hit, miss, TTL, origin that still works when empty <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cache-aside default; stampede is the default incident <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Layers: HTTP ([RFC 9111](https://www.rfc-editor.org/rfc/rfc9111)), CDN, [Varnish](https://varnish-cache.org/) / [nginx](https://nginx.org/), L1, [Redis](https://redis.io/) / [Memcached](https://memcached.org/) / [ElastiCache](https://aws.amazon.com/elasticache/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Writes: delete + TTL; write-back only with an RPO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Eviction ≠ invalidation — set `maxmemory` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Caching and Content Delivery Networks <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Distributed: agreeing hash, empty-node plan, hot-key controls <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* CDN: pull by default, shield against a global miss storm <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [CloudFront](https://aws.amazon.com/cloudfront/), [Cloudflare](https://www.cloudflare.com/), [Fastly](https://www.fastly.com/), [Akamai](https://www.akamai.com/), [Cloud CDN](https://cloud.google.com/cdn), [Front Door](https://azure.microsoft.com/products/frontdoor) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw it in [Excalidraw](https://excalidraw.com/). Next: Message Queues, Streams, and Real-Time Communication <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
         </textarea>
 
       </section>
