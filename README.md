@@ -551,11 +551,42 @@ We are so thankful for every contribution, which makes sure we can deliver top-n
 
 System design is how you choose components, contracts, and operational qualities so a product still works as load, data, and failure grow. This chapter defines the skill, names the problem it solves, separates it from software design and architecture, and shows the building blocks and canvases we will keep naming. We then show how the rest of this book is organized: foundations first, then an optional interview add-on, then applied designs such as Design Netflix and Design Twitter. The next chapter is Large-Scale Systems: Scalability, Availability, Reliability, and Performance.
 
+```mermaid
+flowchart LR
+  client[Client]
+  dns[DNS]
+  lb[Load balancer]
+  app[Service]
+  store[(Datastore)]
+  cache[(Cache)]
+  q[Queue]
+  client --> dns --> lb --> app
+  app --> store
+  app --> cache
+  app -.-> q
+```
+
+*A system is a request path plus the async fork, not a process. Draw this in [Excalidraw](https://excalidraw.com/) before you name [Kubernetes](https://kubernetes.io/).*
+
+
 ### What is System Design?
 
 **System design** is the work of choosing components, contracts, and operational qualities so a product can meet its requirements as load, data, and failure grow. A system is not one process. It is clients, DNS, load balancing, application services, datastores, caches, asynchronous pipelines, and the telemetry that tells you the path is sick.
 
 The job on a product team is not to "use the cloud." The job is to wrap a request path you can test, operate, and change: who calls, what the contract is, where data lives, and what happens when a box dies.
+
+```mermaid
+flowchart TB
+  subgraph path [What you design]
+    c[Component]
+    k[Contract]
+    q[Operational quality]
+  end
+  c --> k --> q
+```
+
+*Three words on every sketch: a box, a promise, a quality. A logo without those three is a collage.*
+
 
 A few words we will keep using:
 
@@ -603,9 +634,32 @@ Without system design, a product is one process on one machine that only the hap
 
 A bigger virtual machine is not system design by itself. It is one lever. When that lever runs out, you need the rest of this book.
 
+```mermaid
+flowchart TB
+  load[Load: more than one instance]
+  data[Data: more than one disk]
+  fail[Failure: disks and regions die]
+  lat[Latency vs correctness]
+  change[Change: version the contract]
+```
+
+*The daily problems. If you cannot point at which one you are solving, you are decorating the sketch.*
+
+
 ### System Design vs Software Design vs Architecture
 
 Three layers show up in every later chapter. Mixing them up is the most common beginner trap, so we separate them now.
+
+```mermaid
+flowchart TB
+  sw[Software design: inside one service]
+  sys[System design: the working path]
+  arch[Architecture: the long-lived map]
+  sw --> sys --> arch
+```
+
+*Name the layer before you pick a box. A clean module layout does not make a feed scale. A [Kubernetes](https://kubernetes.io/) cluster does not make a schema right.*
+
 
 **1. Software design — inside one service**
 
@@ -641,9 +695,42 @@ The qualities we will spend the next chapter on:
 
 You cannot maximize all of them. A strongly consistent multi-region write path will cost latency. A cache that hides the primary will cost freshness. Write the qualities that matter for *this* path, then pick. Capacity planning and back-of-the-envelope math is how those picks get numbers. We do that in the next chapter, not as a 45-minute ritual.
 
+```mermaid
+flowchart LR
+  scale[Scalability]
+  avail[Availability]
+  rel[Reliability]
+  perf[Performance]
+  dr[Disaster recovery]
+  scale -.->|trade-off| perf
+  avail -.->|trade-off| rel
+  dr -.->|trade-off| perf
+```
+
+*You cannot maximize all of them. Write the qualities that matter for this path, then pick.*
+
+
 ### Building Blocks You Will Name
 
 We teach these later. We link them now so "the cloud" is not a fog. Name a product when the choice matters. A box labeled "database" is fine on the first sketch; a box labeled [PostgreSQL](https://www.postgresql.org/) that you cannot explain is worse than the unlabeled box.
+
+```mermaid
+flowchart LR
+  cloud[Cloud: AWS / GCP / Azure]
+  compute[Compute: VMs / Kubernetes]
+  data[(PostgreSQL / Redis / S3)]
+  async[Kafka / a queue]
+  edge[Cloudflare]
+  obs[Prometheus / Grafana]
+  cloud --> compute
+  compute --> data
+  compute --> async
+  compute --> edge
+  compute --> obs
+```
+
+*Building blocks you will keep naming. An unlabeled "database" beats a [PostgreSQL](https://www.postgresql.org/) box you cannot explain.*
+
 
 #### Cloud and Compute
 
@@ -723,6 +810,18 @@ Use the icon sets in [diagrams.net](https://www.diagrams.net/) when you write no
 3. Name real products only when the choice matters: [Redis](https://redis.io/) versus [PostgreSQL](https://www.postgresql.org/), [Apache Kafka](https://kafka.apache.org/) versus a simpler queue, [Cloudflare](https://www.cloudflare.com/) as an edge, [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/) or [Datadog](https://www.datadoghq.com/) as telemetry.
 4. Change one constraint (load, data size, a region dying) and redraw. That is the skill. Timed 45-minute practice waits until the optional interview add-on.
 
+```mermaid
+flowchart LR
+  read[Read the chapter]
+  draw[Redraw in Excalidraw]
+  name[Name a product on purpose]
+  change[Change one constraint]
+  read --> draw --> name --> change --> draw
+```
+
+*The working loop. The canvas is [Excalidraw](https://excalidraw.com/); [diagrams.net](https://www.diagrams.net/) is for notes.*
+
+
 ### How this book is organized
 
 Every later chapter is a working loop: read the lever, draw it, name a product on purpose. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/) in this book. Chapter names in the Table of Contents are the contract; when we say Large-Scale Systems: Scalability, Availability, Reliability, and Performance, that is the next heading you will meet.
@@ -731,6 +830,18 @@ Every later chapter is a working loop: read the lever, draw it, name a product o
 - **System Design Interviews (Optional)** and **The Interview Working Loop.** Skip these if you are here to design systems at work. Read them if you also need a 45-minute conversation on a shared canvas.
 - **Applied designs.** Classic Warm-Up Problems through Infrastructure and Platform Problems: Design a URL Shortener, Design Twitter, Design Netflix, Design a Key-Value Store, and the rest. They apply the foundations. They are not a substitute for the foundations.
 - **Common Challenges and Debugging Tips** and **Additional Resources and Reading Materials.** Debug order, a 30-day practice plan, and the catalog.
+
+```mermaid
+flowchart TB
+  found[Foundations]
+  opt[Optional interview add-on]
+  applied[Applied designs]
+  close[Challenges + resources]
+  found --> opt --> applied --> close
+```
+
+*Foundations first. Interviews are optional. Applied designs at the end are not a substitute for the levers.*
+
 
 We will not invent company case studies. Each chapter ends with `Summary: {that chapter's title}` and points to the next heading. There is no `Conclusion` heading.
 
@@ -747,6 +858,17 @@ System design is choosing components, contracts, and operational qualities so a 
 Introduction to System Design named the qualities every later path is judged by. This chapter is those qualities, with numbers attached: what "large-scale" actually means, how you grow a path, how you keep it answering, how you keep it correct, how you make it fast enough, what you do when a region dies, and how back-of-the-envelope math keeps the sketch honest. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the path in [Excalidraw](https://excalidraw.com/) and naming products only when the choice matters. The next chapter is Networking, Protocols, and Web Concepts — the request path on the wire.
 
 You cannot maximize every quality at once. Write the ones that matter for *this* path, then pick.
+
+```mermaid
+flowchart LR
+  load[Load]
+  data[Data]
+  fd[Failure domain]
+  geo[Geography]
+```
+
+*Large-scale starts when one box, one disk, or one failure domain is no longer the whole story. Name the axis.*
+
 
 ### What Large-Scale Means
 
@@ -815,6 +937,25 @@ This only works if the new box can do useful work without owning all the state.
 
 1. **A front door that spreads traffic.** [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer), or software such as [NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), and [Envoy](https://www.envoyproxy.io/). Networking, Protocols, and Web Concepts is the load-balancing chapter. For this quality, you only need: health checks, and a story for what happens when an instance disappears.
 2. **State that is shared or partitioned on purpose.** Sessions in [Redis](https://redis.io/) (or [Amazon ElastiCache](https://aws.amazon.com/elasticache/)), rows in a shared [PostgreSQL](https://www.postgresql.org/) (or [Amazon RDS](https://aws.amazon.com/rds/)), blobs in [Amazon S3](https://aws.amazon.com/s3/). Sticky sessions on the load balancer are a patch, not a design.
+
+```mermaid
+flowchart TB
+  subgraph vertical [Vertical: bigger box]
+    v1[1 instance]
+  end
+  subgraph horizontal [Horizontal: more boxes]
+    lb[Load balancer]
+    a1[Replica]
+    a2[Replica]
+    a3[Replica]
+    lb --> a1
+    lb --> a2
+    lb --> a3
+  end
+```
+
+*Vertical is a larger size. Horizontal is a front door plus shared or partitioned state. Say which lever you are pulling.*
+
 3. **A way to add and remove boxes without a meeting.** [AWS Auto Scaling](https://aws.amazon.com/autoscaling/) for VMs and target groups. [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) when you are already on [Kubernetes](https://kubernetes.io/). Autoscaling that cannot see a meaningful metric is a fan.
 
 **[AWS Auto Scaling](https://aws.amazon.com/autoscaling/)**
@@ -901,6 +1042,20 @@ Hops **in sequence** multiply. Replicas **in parallel** recover what multiplicat
 
 If each hop is independently available with probability `A`, `B`, `C`, the path is available with `A × B × C`. Three hops at 99.9% are about **99.7%** together, not 99.9%. Every extra synchronous dependency is a haircut. Timeouts, retries, and caches exist because of this arithmetic, not because they look like "production."
 
+```mermaid
+flowchart LR
+  subgraph seq [Sequence: multiply]
+    a[A] --> b[B] --> c[C]
+  end
+  subgraph par [Parallel: recover]
+    r1[Replica 1]
+    r2[Replica 2]
+  end
+```
+
+*Sequence costs nines. Independent replicas buy nines. Shared fate is still sequence, even if you drew two boxes.*
+
+
 **Parallel (the request can use replica 1 *or* replica 2):**
 
 If each replica fails independently with probability `F`, two replicas fail together with `F × F`. Two hops at 99% in parallel are about **99.99%**, if failover actually works and they do not share a failure domain. Two processes on one host share a host. Two instances in one availability zone share a zone.
@@ -946,6 +1101,23 @@ You will measure whether that story is true with [Prometheus](https://prometheus
 #### Single Points of Failure
 
 A **single point of failure (SPOF)** is a component whose death takes the path with it. One [PostgreSQL](https://www.postgresql.org/) primary with no replica. One [Redis](https://redis.io/) without a replica or a cache-miss fallback. One availability zone. One [Amazon S3](https://aws.amazon.com/s3/) bucket in one region if that region *is* the product. One operator's laptop with the only credentials.
+
+```mermaid
+flowchart LR
+  users[Users]
+  lb[Load balancer]
+  app1[App]
+  app2[App]
+  primary[(One primary)]
+  users --> lb
+  lb --> app1
+  lb --> app2
+  app1 --> primary
+  app2 --> primary
+```
+
+*Two app boxes do not remove a SPOF if they share one primary. Put a finger on every box and kill it.*
+
 
 **How you hunt them on a sketch:**
 
@@ -993,6 +1165,22 @@ Two ways to spend the extra box.
 
 **Active-passive (active-standby):** one side takes traffic. The other is ready (or almost ready) and takes over on failover. [Amazon RDS Multi-AZ](https://aws.amazon.com/rds/features/multi-az/) is this shape. A hot standby that already has the data is faster than a cold spare you boot from a snapshot. You pay for the standby the whole time. You get a simpler consistency story: one writer.
 
+```mermaid
+flowchart LR
+  subgraph passive [Active-passive]
+    p1[Active]
+    p2[Standby]
+    p1 -.-> p2
+  end
+  subgraph active [Active-active]
+    a1[Active]
+    a2[Active]
+  end
+```
+
+*Stateless hops want active-active. Stateful hops start active-passive with a tested failover.*
+
+
 **Active-active:** both (or all) sides take traffic at once. API replicas behind [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) are the easy version — stateless workers, shared datastore. Multi-region active-active is the hard version: writes in more than one place, conflict, replication lag. [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) [global tables](https://aws.amazon.com/dynamodb/global-tables/) and multi-primary [PostgreSQL](https://www.postgresql.org/) topologies exist. They are not the default. Distributed Systems is where conflict and quorum live.
 
 **How you pick:**
@@ -1034,6 +1222,17 @@ Durability (the bit did not disappear) sits next to reliability for stores. [Ama
 
 Three documents, three audiences. Mixing them is how you promise nines you cannot measure.
 
+```mermaid
+flowchart TB
+  sli[SLI: the thing you measure]
+  slo[SLO: internal target + error budget]
+  sla[SLA: external contract]
+  sli --> slo --> sla
+```
+
+*SLI = measure. SLO = internal target. SLA = customer or vendor contract. A vendor SLA is not your SLO.*
+
+
 **SLI — Service Level Indicator.** The *thing you measure*. Ratio of successful probes, p99 latency, freshness of a replica, fraction of captured payments that later reconcile. [Service Level Objectives](https://sre.google/sre-book/service-level-objectives/) is the canonical chapter. You implement the measurement in [Prometheus](https://prometheus.io/) (plus [Grafana](https://grafana.com/) for the picture), [Datadog](https://www.datadoghq.com/), [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/), [Google Cloud Monitoring](https://cloud.google.com/monitoring), [Azure Monitor](https://azure.microsoft.com/products/monitor), or traces via [OpenTelemetry](https://opentelemetry.io/). If you cannot query it, it is not an SLI.
 
 **SLO — Service Level Objective.** The *target you aim at* for an SLI, internally. "99.9% of well-formed GETs in 300 ms over 30 days." The error budget is `1 − SLO`. [Implementing SLOs](https://sre.google/workbook/implementing-slos/) in the [SRE Workbook](https://sre.google/workbook/table-of-contents/) is the practical follow-on. Product and engineering share this number. It is how you decide whether to ship or freeze.
@@ -1058,6 +1257,16 @@ You will talk about three different quantities (latency, throughput, bandwidth),
 #### Latency vs Throughput vs Bandwidth
 
 Three words. Three different axes. Mixing them is how you "fix latency" by buying a fatter NIC.
+
+```mermaid
+flowchart LR
+  lat[Latency: time per request]
+  thr[Throughput: requests per time]
+  bw[Bandwidth: bytes per time]
+```
+
+*Say which axis you are moving. "Make it faster" is not a requirement. "p99 GET under 200 ms at 5k QPS" is.*
+
 
 **Latency** is time for one unit of work: a request, a disk read, a packet round trip. Users feel this. Units: ms, µs, ns. Lower is better.
 
@@ -1084,6 +1293,20 @@ The **mean** is a liar. One slow request in a hundred is a rounding error on the
 
 - Garbage collection, compaction, a noisy neighbor, a cold cache, a lock, a slow disk.
 - **Fan-out:** one user request waits for *N* backend calls and takes the slowest. If each backend has a 1% chance of a slow call, a 50-way fan-out is slow often. Tail at scale is a coordination problem, not a mean problem.
+
+```mermaid
+flowchart TB
+  user[User request]
+  b1[Backend 1]
+  b2[Backend 2]
+  bn[Backend N]
+  user --> b1
+  user --> b2
+  user --> bn
+```
+
+*The user waits for the slowest of N. SLO the tail (p99), not the mean. If the request fans out, the tail is the product.*
+
 - Retries: a timeout plus a retry can turn a slow tail into a stampede. Timeout < user patience, retry with jitter, cap the attempts.
 
 Measure tails in [Prometheus](https://prometheus.io/) histograms, [Datadog](https://www.datadoghq.com/) distribution metrics, [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) percentile statistics, or [OpenTelemetry](https://opentelemetry.io/) traces. Averages in [Grafana](https://grafana.com/) are for finding out you need percentiles.
@@ -1133,6 +1356,18 @@ Two numbers, then a backup you have actually restored.
 
 **RTO — Recovery Time Objective.** How long the path can stay wrong or down while you recover. RTO of 5 minutes is automatic failover. RTO of 24 hours is "we restore from backup on Monday."
 
+```mermaid
+flowchart LR
+  disaster[Disaster]
+  rpo[RPO: data you may lose]
+  rto[RTO: time until recovered]
+  disaster --> rpo
+  disaster --> rto
+```
+
+*Write RPO and RTO as times. Then pick the cheapest strategy that meets both. Then restore it once on purpose.*
+
+
 These are product numbers. Engineering maps them onto a strategy:
 
 | Rough RPO / RTO | Typical strategy | Tools you can point at |
@@ -1153,6 +1388,21 @@ These are product numbers. Engineering maps them onto a strategy:
 #### Multi-Region and Multi-Datacenter Failover
 
 An **availability zone** is a failure domain inside a region (separate buildings, independent power, short metro latency). A **region** is a geography with its own control plane and a WAN RTT to other regions. [AWS Regions and Availability Zones](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/), [Google Cloud locations](https://cloud.google.com/about/locations), [Azure geographies](https://azure.microsoft.com/explore/global-infrastructure/geographies/). Multi-AZ is the default HA move. Multi-region is the DR move, and it costs latency and consistency.
+
+```mermaid
+flowchart TB
+  subgraph regionA [Region A]
+    az1[AZ 1]
+    az2[AZ 2]
+  end
+  subgraph regionB [Region B]
+    az3[AZ 1]
+  end
+  regionA -.->|WAN RTT / replication| regionB
+```
+
+*Multi-AZ first. Multi-region when the threat is the region. Writes that cross a region buy a WAN RTT or a conflict.*
+
 
 **Multi-AZ (usually the right first redundancy):**
 
@@ -1178,6 +1428,18 @@ Qualities without numbers are wishes. **Capacity planning** is the napkin that t
 You do not need a cloud account. You do need a canvas ([Excalidraw](https://excalidraw.com/)) and the numbers from Numbers Worth Memorizing. When you want a cost sanity check later, [AWS Pricing Calculator](https://calculator.aws/), [Google Cloud Pricing Calculator](https://cloud.google.com/products/calculator), and [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/) turn instance shapes into money. Money is a constraint. It is not the first line on the napkin.
 
 **The four lines we always write:**
+
+```mermaid
+flowchart TB
+  qps[1. QPS]
+  storage[2. Storage]
+  bandwidth[3. Bandwidth]
+  boxes[4. Boxes]
+  qps --> storage --> bandwidth --> boxes
+```
+
+*QPS, storage, bandwidth, boxes — in that order — with powers of ten. Then pick vertical vs horizontal vs a different data path.*
+
 
 1. **QPS (throughput).** `peak QPS ≈ (daily active users × requests per user per day × peak factor) / 86,400`. 86,400 seconds in a day is ~10^5. Peak factor is often 2–5× average. If you cannot name requests per user, you cannot name QPS.
 2. **Storage.** `bytes ≈ objects × average size × copies × retention`. Copies include replicas, backups, and versions. A 1 KB row and a 1 MB blob are different designs. Blobs go to [Amazon S3](https://aws.amazon.com/s3/) (or [Google Cloud Storage](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs)); metadata stays in [PostgreSQL](https://www.postgresql.org/).
@@ -1211,6 +1473,20 @@ Large-scale starts when one box, one disk, or one failure domain is no longer th
 Large-Scale Systems: Scalability, Availability, Reliability, and Performance judged the path. This chapter is the path on the wire: how a packet is addressed, which transport carries it, how a name becomes an IP, how HTTP and TLS wrap the request, and which box — proxy or load balancer — sits in front of your replicas. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the hops in [Excalidraw](https://excalidraw.com/) and naming products only when the choice matters. The next chapter is API Design — the contract those hops carry.
 
 A request is not "the internet." It is DNS, then a TCP (or QUIC) handshake, then TLS, then HTTP, then a reverse proxy or load balancer, then an application. Miss a hop and you cannot explain latency, sticky sessions, or why a 60-second DNS TTL is part of failover.
+
+```mermaid
+flowchart LR
+  dns[DNS]
+  tcp[TCP / QUIC]
+  tls[TLS]
+  http[HTTP]
+  lb[Proxy / LB]
+  app[App]
+  dns --> tcp --> tls --> http --> lb --> app
+```
+
+*Name the six hops. A missing hop is where your p99 went. Draw this in [Excalidraw](https://excalidraw.com/).*
+
 
 ### IP Addressing
 
@@ -1254,6 +1530,21 @@ IPv6 unique-local (`fc00::/7`) is the analog; most cloud VPCs hand you a global 
 
 **NAT** is how a private host originates a connection to a public address without owning one. The box that rewrites is a **[NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html)** ([Google Cloud NAT](https://cloud.google.com/nat), [Azure NAT Gateway](https://azure.microsoft.com/products/azure-nat-gateway)). The box that lets a public subnet reach the internet is an **[Internet gateway](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html)**. Do not mix them: an internet gateway does not hide private IPs; a NAT gateway does not accept unsolicited inbound.
 
+```mermaid
+flowchart LR
+  user[User]
+  igw[Internet gateway]
+  lb[Public LB]
+  app[Private app]
+  nat[NAT gateway]
+  net[Internet]
+  user --> igw --> lb --> app
+  app --> nat --> net
+```
+
+*Users see public addresses. App processes live on [RFC 1918](https://www.rfc-editor.org/rfc/rfc1918) private space. NAT is egress; the internet gateway is the door.*
+
+
 **Dynamic vs static** is orthogonal. [DHCP](https://www.rfc-editor.org/rfc/rfc2131) leases are how most private addresses get assigned inside a VPC. A static public IP is what you attach to a front door so DNS can point at it. Ephemeral public IPs on instances are a trap: reboot, new address, DNS lie.
 
 **Working rule:** users and peer networks see public addresses. Application processes and datastores live on private addresses. The NAT/internet-gateway pair is the door. A [PostgreSQL](https://www.postgresql.org/) primary with a public IP is a sketch you redraw.
@@ -1261,6 +1552,19 @@ IPv6 unique-local (`fc00::/7`) is the analog; most cloud VPCs hand you a global 
 ### The OSI Model
 
 The **Open Systems Interconnection (OSI) model** ([ITU-T X.200](https://www.itu.int/rec/T-REC-X.200), [ISO/IEC 7498-1](https://www.iso.org/standard/20269.html)) splits communication into seven layers so you can say *which* hop you are designing. Production networks run the **Internet protocol suite** (TCP/IP), not a literal seven-stack. You still use OSI numbers because load balancers, packet captures, and vendor SKUs are sold as "Layer 4" and "Layer 7."
+
+```mermaid
+flowchart TB
+  l7[L7 Application: HTTP]
+  l4[L4 Transport: TCP / UDP]
+  l3[L3 Network: IP / VPC]
+  l2[L2 Data link]
+  l1[L1 Physical]
+  l7 --> l4 --> l3 --> l2 --> l1
+```
+
+*The working layers on a sketch are L3, L4, and L7. Reciting all seven without picking L4 vs L7 for the front door is trivia.*
+
 
 | Layer | Name | What you actually design |
 | --- | --- | --- |
@@ -1293,6 +1597,21 @@ Reciting all seven layers without picking L4 versus L7 for the front door is tri
 ### TCP and UDP
 
 Two transport protocols carry almost every request you will draw. **TCP** ([RFC 9293](https://www.rfc-editor.org/rfc/rfc9293)) is connection-oriented: three-way handshake (SYN, SYN-ACK, ACK), ordered byte stream, retransmission, congestion control. **UDP** ([RFC 768](https://www.rfc-editor.org/rfc/rfc768)) is datagrams: no handshake, no retransmission, no ordering. Neither is "better." They optimize different failure modes.
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as Server
+  Note over C,S: TCP handshake
+  C->>S: SYN
+  S->>C: SYN-ACK
+  C->>S: ACK
+  Note over C,S: UDP: just datagrams
+  C-->>S: datagram
+```
+
+*TCP if a missing byte is a bug. UDP if a late byte is worse than a missing one. HTTP/3 is UDP on the wire and TCP-like in the contract.*
+
 
 | | TCP | UDP |
 | --- | --- | --- |
@@ -1331,6 +1650,26 @@ You will operate DNS in two roles: **authoritative** (the records for your zones
 #### How DNS Resolution Works
 
 A lookup is a chain. The stub resolver on the client asks a **recursive resolver**. If the answer is not cached, the recursor walks:
+
+```mermaid
+sequenceDiagram
+  participant Stub
+  participant Recursor
+  participant Root
+  participant TLD
+  participant Auth
+  Stub->>Recursor: api.example.com
+  Recursor->>Root: who owns .com
+  Root-->>Recursor: TLD NS
+  Recursor->>TLD: who owns example.com
+  TLD-->>Recursor: Auth NS
+  Recursor->>Auth: A / AAAA
+  Auth-->>Recursor: address + TTL
+  Recursor-->>Stub: address + TTL
+```
+
+*Stub → recursor → root / TLD / auth. The TTL is failover math. On a product sketch, draw the authoritative product and the TTL.*
+
 
 1. **Root** — the [IANA root servers](https://www.iana.org/domains/root/servers) (13 named identities, many anycast instances). They do not know `example.com`. They know who owns `.com`.
 2. **TLD** — the `.com` (or `.io`, `.dev`) nameservers. They know which authoritative servers own `example.com`.
@@ -1390,6 +1729,19 @@ Records are the contract. TTL is the cache lease. Wrong type is a silent outage 
 - **HTTP/3** ([RFC 9114](https://www.rfc-editor.org/rfc/rfc9114)) — HTTP over [QUIC](https://www.rfc-editor.org/rfc/rfc9000)/UDP, per-stream loss recovery.
 
 The **web request path** you should be able to draw without looking:
+
+```mermaid
+flowchart LR
+  c[Client]
+  d[DNS]
+  e[Edge / LB]
+  a[App]
+  s[(Store)]
+  c --> d --> e --> a --> s
+```
+
+*DNS, handshake, TLS, HTTP, proxy, app. [Cloudflare](https://www.cloudflare.com/) or [Amazon CloudFront](https://aws.amazon.com/cloudfront/) may sit at the edge — still a hop that speaks HTTP and TLS.*
+
 
 1. DNS lookup for the host.
 2. TCP or QUIC handshake to the address (often a load balancer or edge, not the app).
@@ -1460,6 +1812,20 @@ TLS gives you three properties on the wire: **authentication** of the server (an
 
 **Where you terminate:**
 
+```mermaid
+flowchart LR
+  client[Client]
+  edge[Edge]
+  lb[Load balancer]
+  app[App]
+  client -->|TLS| edge
+  edge -->|TLS or HTTP| lb
+  lb -->|HTTP or TLS| app
+```
+
+*Say where TLS terminates, who issued the cert, and whether the next hop is HTTP or TLS again. After termination, say what still protects the next hop.*
+
+
 - **At the edge** — [Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/), [Azure Front Door](https://azure.microsoft.com/products/frontdoor). Origin may see HTTP or a second TLS session (re-encrypt).
 - **At the load balancer** — [AWS Application Load Balancer](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Application Gateway](https://azure.microsoft.com/products/application-gateway), [NGINX](https://nginx.org/), [Envoy](https://www.envoyproxy.io/), [Caddy](https://caddyserver.com/), [Traefik](https://traefik.io/traefik/). Apps see HTTP and `X-Forwarded-Proto`.
 - **At the application** — passthrough L4 ([AWS Network Load Balancer](https://aws.amazon.com/elasticloadbalancing/network-load-balancer/)) or TLS in the process. You keep cookies and client certs intact. You pay operational cost.
@@ -1499,6 +1865,19 @@ A **proxy** is a hop that takes a request and forwards it, optionally changing T
 **Forward proxy:** the *client* (or the egress NAT of a company) chooses the proxy. The origin sees the proxy's IP. Use cases: corporate egress, allowlists, developers reaching the public internet from private subnets, some crawling. Product: **[Squid](https://www.squid-cache.org/)**. Cloud analog: an HTTP proxy on a central egress, or [AWS PrivateLink](https://aws.amazon.com/privatelink/) / VPC endpoints when you are avoiding the public internet altogether rather than forwarding HTTP.
 
 **Reverse proxy:** the *server operator* puts the proxy in front of origin servers. The client thinks it is talking to the origin. TLS, routing, compression, static files, authn, buffering, WebSocket upgrade. Products: **[NGINX](https://nginx.org/)**, **[Envoy](https://www.envoyproxy.io/)**, **[HAProxy](https://www.haproxy.org/)**, **[Caddy](https://caddyserver.com/)**, **[Traefik](https://traefik.io/traefik/)**, plus every cloud HTTP load balancer.
+
+```mermaid
+flowchart LR
+  subgraph fwd [Forward proxy]
+    cli[Client] --> fp[Proxy] --> origin1[Origin]
+  end
+  subgraph rev [Reverse proxy]
+    user[User] --> rp[Proxy] --> origin2[Your origin]
+  end
+```
+
+*Forward proxy is chosen by the client (egress). Reverse proxy is chosen by you (ingress). Draw the arrow of who configured it.*
+
 
 **[NGINX](https://nginx.org/)**
 
@@ -1550,6 +1929,23 @@ Managed products: **[AWS Elastic Load Balancing](https://aws.amazon.com/elasticl
 
 **Layer 7** (application): decide on HTTP host, path, header, method, cookie. Can terminate TLS, attach a web application firewall ([AWS WAF](https://aws.amazon.com/waf/)), route gRPC, set sticky cookies. Pros: one front door for many services. Cons: it is in the HTTP business now — header size, timeouts, WebSocket upgrade, HTTP/2.
 
+```mermaid
+flowchart TB
+  subgraph l4 [Layer 4]
+    nlb[IP + port]
+    nlb --> t1[Target]
+    nlb --> t2[Target]
+  end
+  subgraph l7 [Layer 7]
+    alb[Host / path / header]
+    alb -->|/api| api[API]
+    alb -->|/static| static[Static]
+  end
+```
+
+*HTTP user traffic → L7. Anything that is not HTTP, or TLS you must not terminate → L4. Write the layer on the box.*
+
+
 | | Layer 4 | Layer 7 |
 | --- | --- | --- |
 | Sees | IP, port, TCP/UDP | HTTP/gRPC |
@@ -1590,6 +1986,18 @@ The algorithm is how the balancer picks a *healthy* target. Unhealthy targets ar
 
 **Health checks** are how the balancer knows a replica may receive traffic. Without them you have round-robin to the dead.
 
+```mermaid
+flowchart LR
+  lb[Load balancer]
+  healthy[Healthy replica]
+  dead[Dead replica]
+  lb -->|GET /healthz ok| healthy
+  lb -.->|fail: no new traffic| dead
+```
+
+*Readiness (or the cloud health check) gates traffic. Liveness restarts a process. Drain before you kill.*
+
+
 - **Active** — the balancer probes (`GET /healthz`, TCP connect). [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/) target health, [Google Cloud Load Balancing](https://cloud.google.com/load-balancing) health checks, [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) probes, [HAProxy](https://www.haproxy.org/) `option httpchk`.
 - **Passive / outlier** — [Envoy](https://www.envoyproxy.io/) ejects a target that is already 5xx-ing. Faster to notice; easier to eject everyone during a bad deploy.
 - **[Kubernetes](https://kubernetes.io/) [liveness, readiness, and startup probes](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/)** — liveness restarts a stuck process; **readiness** is the one that looks like a load-balancer health check (remove from Service endpoints). Do not point liveness at a dependency: a down [PostgreSQL](https://www.postgresql.org/) should not restart every pod in a loop.
@@ -1609,6 +2017,22 @@ A **health endpoint** that checks the datastore on every probe can DDoS the data
 ### Clustering vs Load Balancing
 
 People say "we clustered it" when they mean "we load balanced it." They are different shapes.
+
+```mermaid
+flowchart LR
+  subgraph balanced [Load balancing]
+    x[LB] --> s1[Stateless]
+    x --> s2[Stateless]
+  end
+  subgraph clustered [Clustering]
+    p[(Primary)]
+    r[(Replica)]
+    p --> r
+  end
+```
+
+*If nodes are interchangeable and stateless, you load balanced. If nodes vote, replicate, or own a key range, you clustered.*
+
 
 **Load balancing** spreads *requests* across replicas that do not need to know about each other. State lives elsewhere ([PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Amazon S3](https://aws.amazon.com/s3/)). Adding a replica is a health check and a target group. This is the stateless hop.
 
@@ -3216,3 +3640,493 @@ flowchart TB
 ### Summary: Caching and Content Delivery Networks
 
 A cache is a **derived copy** with a **hit, a miss, a TTL, and an origin that still works when the copy is gone** — not a smaller database. **Cache-aside** is the default read; **stampede** is the default incident (coalesce, lock, stale-while-revalidate, jitter, negative cache). **Layers** stack: client HTTP ([RFC 9111](https://www.rfc-editor.org/rfc/rfc9111)), CDN, reverse proxy ([Varnish Cache](https://varnish-cache.org/), [nginx](https://nginx.org/)), L1 ([Caffeine](https://github.com/ben-manes/caffeine)), L2 ([Redis](https://redis.io/), [Valkey](https://valkey.io/), [Memcached](https://memcached.org/), [Amazon ElastiCache](https://aws.amazon.com/elasticache/)), then the engine's own buffer pool ([Amazon DynamoDB DAX](https://aws.amazon.com/dynamodb/dax/) when you draw it). **Writes:** cache-aside + delete + TTL; write-through when a sidecar does it; write-back only with an RPO. **Eviction** is finite memory ([Redis `maxmemory-policy`](https://redis.io/docs/latest/develop/reference/eviction/), LRU / LFU / TinyLFU) — not invalidation. **Distributed caches** need a hash that agrees, a failover that does not 5xx the homepage unless you mean it, and a **hot-key** plan (L1, split, CDN). **CDNs** ([Amazon CloudFront](https://aws.amazon.com/cloudfront/), [Cloudflare](https://www.cloudflare.com/), [Fastly](https://www.fastly.com/), [Akamai](https://www.akamai.com/), [Google Cloud CDN](https://cloud.google.com/cdn), [Azure Front Door](https://azure.microsoft.com/products/frontdoor)) are global HTTP caches: pull by default, push when you ingest, origin shield against a global miss storm. They do not replace origin, authz, or personalized JSON. Draw the copies in [Excalidraw](https://excalidraw.com/). Next is **Message Queues, Streams, and Real-Time Communication**.
+
+## Message Queues, Streams, and Real-Time Communication
+
+Caching and Content Delivery Networks hid **derived copies** in front of the origin. This chapter is the **paths that do not wait on the request**: a 202 you already returned, a worker that will run later, a log another service can replay, a socket that pushes when something happens. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the fork in [Excalidraw](https://excalidraw.com/) first — who produces, who consumes, what is stored, what is acked, what the client sees — then naming a product ([Amazon SQS](https://aws.amazon.com/sqs/), [RabbitMQ](https://www.rabbitmq.com/), [Apache Kafka](https://kafka.apache.org/), [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)) only when the choice matters. The next chapter is Architectural Patterns, Microservices, and Cloud-Native Architecture — where this async hop becomes an event-driven style.
+
+A queue is not "we are event-driven." It is a **delivery and buffering contract** you can operate when the consumer is slow, a message is poison, and a client already walked away. Miss the contract and a retry double-sends an email, a partition freeze is your outage, and a WebSocket farm is a sticky-session sketch you already forbade.
+
+```mermaid
+flowchart LR
+  client[Client]
+  api[API]
+  q[(Queue / log)]
+  worker[Worker]
+  store[(Datastore)]
+  client -->|sync request| api
+  api -->|202 / ack| client
+  api -->|enqueue| q
+  q --> worker
+  worker --> store
+```
+
+*The request returns. The work continues. Draw that fork in [Excalidraw](https://excalidraw.com/) before you pick [Amazon SQS](https://aws.amazon.com/sqs/) or [Apache Kafka](https://kafka.apache.org/).*
+
+### Synchronous vs Asynchronous Paths
+
+A **synchronous** path is one the client waits on: the HTTP request is open until the work finishes or the timeout fires. Networking already gave you the timeout; API Design already gave you `200` versus `202`. The skill here is **which work is allowed to be on that timer**.
+
+An **asynchronous** path is one the client does not wait on: you **accept** the work (write a row, enqueue a message, append a log) and return. The result arrives later — a worker, a mail, a push, a webhook (API Design), a socket frame in this chapter.
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant A as API
+  participant Q as Queue
+  participant W as Worker
+  C->>A: POST /export
+  A->>Q: enqueue job
+  A-->>C: 202 Accepted
+  Q->>W: deliver
+  W->>W: build file
+  W-->>C: email / push / GET later
+```
+
+*Sync would keep the POST open for the whole export. Async returns `202` and a way to collect the result. If you cannot name that way, you designed a black hole.*
+
+**When the request stays synchronous:**
+
+- The user cannot take the next step without the result (login, a price they will tap, a lock they are looking at).
+- The work is cheaper than a hop to a broker: a [PostgreSQL](https://www.postgresql.org/) primary in the same zone, a [Redis](https://redis.io/) GET.
+- Failure must be **on this response**: charge declined, inventory gone. Hiding that in a queue does not make it async; it makes it a support ticket.
+
+**When you fork async:**
+
+1. **Slow work.** Thumbnails, PDF, CSV export, transcode, a third-party that is p99 8 s. The user should not hold a TCP connection for that. API Design already used `202` for this.
+2. **Load leveling.** Writes arrive as a spike; workers drain at a steady rate. The queue *is* the buffer. That is backpressure you bought on purpose.
+3. **Fan-out.** One write, many downstreams (search index, mail, analytics, cache invalidate). The request should not take the slowest of N. Caching already coalesced fills; here you publish once.
+4. **Decoupling.** The producer should survive a consumer deploy. A queue with a retention you can say is that survival.
+
+**What async is not:**
+
+- Not a way to skip errors. Someone still retries, dead-letters, and pages. Monitoring and Observability is later; the poison-message heading is this chapter.
+- Not a way to skip correctness. "The worker will charge the card" is still a payment. Idempotency (API Design, and Distributed Systems later) is mandatory on at-least-once delivery.
+- Not free. You bought a broker, a consumer fleet, a delivery guarantee, and a new failure mode (the request succeeded; the work did not).
+
+**Working rule:** if the client is still on the socket, you are synchronous. If you returned and someone else will finish, name **where the work lives**, **who acks**, and **how the client finds out**. A 202 without a job id or a push is a shrug.
+
+### Message Brokers
+
+A **message broker** is the box in the middle: producers send, consumers receive, the broker **stores and forwards** under a contract. The contract is the design — not the logo. "We use [Apache Kafka](https://kafka.apache.org/)" without a delivery guarantee is the cache chapter's "we put [Redis](https://redis.io/) in front" again.
+
+```mermaid
+flowchart LR
+  p1[Producer]
+  p2[Producer]
+  broker[Broker]
+  c1[Consumer]
+  c2[Consumer]
+  p1 --> broker
+  p2 --> broker
+  broker --> c1
+  broker --> c2
+```
+
+*Producers do not call consumers. The broker owns buffering, routing, and (usually) durability. If a producer HTTP-calls a consumer "because we have a broker," you drew a synchronous path and labeled it async.*
+
+**What you write on the sketch before a product:**
+
+- **Addressing:** queue (competing consumers, one winner), topic / pub-sub (every subscription gets a copy), log (offset, replay). Queue vs Log vs Pub/Sub is a heading below — pick the shape first.
+- **Durability:** memory only, disk, replicated disk. A broker reboot that drops unacked work is an RPO you have to say (Large-Scale Systems).
+- **Delivery:** at-most-once, at-least-once, exactly-once. Next heading.
+- **Ordering:** none, per queue, per partition / key. Total order across a fleet is a lie unless you have one partition.
+- **Fan-out:** one consumer group, many groups, push vs pull.
+- **Retention:** until acked (queue) versus for N hours/days/bytes (log). Replay is a retention feature, not a personality.
+
+**Brokers you will actually name** (the catalog; the headings below pick):
+
+**[RabbitMQ](https://www.rabbitmq.com/)** (AMQP; also MQTT, streams)
+
+- **Primary function:** traditional broker: exchanges, queues, bindings, ack/nack, dead-letter exchanges, optional quorum queues. Docs: [RabbitMQ documentation](https://www.rabbitmq.com/docs).
+- **When we send you here:** competing consumers, routing keys, you want a queue not a log, AMQP is already in the org.
+- **What it is not:** not a replayable event log of record (use streams or [Apache Kafka](https://kafka.apache.org/) when replay *is* the product). Not a database.
+
+**[Amazon SQS](https://aws.amazon.com/sqs/)** and **[Amazon SNS](https://aws.amazon.com/sns/)**
+
+- **Primary function:** [SQS](https://aws.amazon.com/sqs/) is a managed **queue** (standard or FIFO): visibility timeout, DLQ, long poll. [SNS](https://aws.amazon.com/sns/) is **pub/sub** fan-out (push to SQS, HTTP, email, SMS, [AWS Lambda](https://aws.amazon.com/lambda/)).
+- **When we send you here:** default AWS async box. SNS → SQS is the fan-out-plus-queue shape. [Amazon EventBridge](https://aws.amazon.com/eventbridge/) is the bus when you are routing *events* by pattern across accounts.
+- **What they are not:** not a log you replay from offset 0. Standard SQS is at-least-once and **not ordered**. FIFO is ordered *per message group*, 300 TPS default unless you ask.
+
+**[Apache Kafka](https://kafka.apache.org/)** (and **[Amazon MSK](https://aws.amazon.com/msk/)**, **[Confluent](https://www.confluent.io/)**, **[Redpanda](https://www.redpanda.com/)**)
+
+- **Primary function:** distributed **log**: topics, partitions, consumer groups, retention by time/size, replay. Docs: [Apache Kafka documentation](https://kafka.apache.org/documentation/).
+- **When we send you here:** many independent consumers of the same events, replay, CDC ([Debezium](https://debezium.io/) / [Kafka Connect](https://kafka.apache.org/documentation/#connect)), high throughput.
+- **What it is not:** not a task queue (no per-message ack that removes the record). Not a reason to skip [Amazon SQS](https://aws.amazon.com/sqs/) for "send this email once."
+
+**[Apache Pulsar](https://pulsar.apache.org/)**, **[NATS](https://nats.io/)** ([JetStream](https://docs.nats.io/nats-concepts/jetstream)), **[Azure Service Bus](https://azure.microsoft.com/products/service-bus)**, **[Google Cloud Pub/Sub](https://cloud.google.com/pubsub)**
+
+- **[Apache Pulsar](https://pulsar.apache.org/):** log *and* queue semantics (exclusive / shared / failover / key_shared), geo-replication, segment storage vs brokers. When you need both shapes without two products.
+- **[NATS](https://nats.io/):** tiny core pub/sub; [JetStream](https://docs.nats.io/nats-concepts/jetstream) adds persistence, at-least-once, KV. When you want a small binary and an optional log, not a JVM cluster on day one.
+- **[Azure Service Bus](https://azure.microsoft.com/products/service-bus):** queues and topics on Azure; sessions, duplicate detection, DLQ. **[Azure Event Hubs](https://azure.microsoft.com/products/event-hubs)** is the Kafka-shaped ingest (and a Kafka protocol endpoint).
+- **[Google Cloud Pub/Sub](https://cloud.google.com/pubsub):** global pub/sub, pull or push, at-least-once, optional exactly-once on pull. Default Google Cloud bus.
+
+**[Amazon MQ](https://aws.amazon.com/amazon-mq/)** is managed [RabbitMQ](https://www.rabbitmq.com/) / [ActiveMQ](https://activemq.apache.org/) when the app already speaks AMQP/JMS and you will not rewrite to [SQS](https://aws.amazon.com/sqs/). **[Apache ActiveMQ](https://activemq.apache.org/)** / **[Artemis](https://activemq.apache.org/components/artemis/)** is that JMS world. **[MQTT](https://mqtt.org/)** brokers (**[HiveMQ](https://www.hivemq.com/)**, **[EMQX](https://www.emqx.io/)**, [RabbitMQ](https://www.rabbitmq.com/) MQTT plugin) are **device ↔ cloud** IoT paths, not your checkout bus.
+
+**Working rule:** name the **shape** (queue, log, pub/sub) and the **contract** (ack, retention, order) before the logo. A broker is not a database, not an API, and not a way to make a slow dependency "async" without an SLA on the consumer.
+
+### Message Queues
+
+A **message queue** is competing consumers on a **buffer of work**: each message is processed by **one** worker (unless you explicitly fan-out). When the worker **acks**, the message is gone (or invisible until retention on some products). That is the opposite of a log, where the record stays for everyone else's offset.
+
+```mermaid
+flowchart LR
+  prod[Producer]
+  q[(Queue)]
+  w1[Worker]
+  w2[Worker]
+  w3[Worker]
+  prod --> q
+  q --> w1
+  q --> w2
+  q --> w3
+```
+
+*Three workers, one queue. Each message goes to one of them. That is load-leveling plus horizontal scaling of the slow hop. It is not pub/sub.*
+
+**The loop you actually operate:**
+
+1. Producer **sends** (and gets an ack from the *broker* — that is not "the work ran").
+2. Broker **stores** the message.
+3. Consumer **receives** (push, or long-poll / pull).
+4. Consumer **does the work**, then **acks**. Or **nacks** / lets the visibility timeout expire so another consumer can try.
+5. After N failures, **dead-letter**. Backpressure and Poison Messages is the next heading.
+
+**Visibility timeout** ([Amazon SQS](https://aws.amazon.com/sqs/) [visibility timeout](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html)) is the queue version of a lock: after delivery the message is **hidden**, not deleted. If the worker dies, it reappears. If the worker is slow, it must **heartbeat / change visibility** or a second worker will take it — that is a duplicate you must survive.
+
+**[Amazon SQS](https://aws.amazon.com/sqs/)**
+
+- **Primary function:** managed queue. Standard: at-least-once, best-effort order, nearly unlimited TPS. FIFO: exactly-once *processing* if you use the dedup id, order per `MessageGroupId`. Long polling (`WaitTimeSeconds`) so you do not empty-short-poll.
+- **When we send you here:** default "do this work later" on [AWS](https://aws.amazon.com/). Pair with [SNS](https://aws.amazon.com/sns/) for fan-out, [AWS Lambda](https://aws.amazon.com/lambda/) event source mapping if the worker can be a function, a fleet of VMs/containers if it cannot.
+- **What it is not:** not a log, not a chat bus, not ordered unless FIFO, not a place to store a 512 MB blob (pointer to [Amazon S3](https://aws.amazon.com/s3/) instead; SQS payload limits are small).
+
+**[RabbitMQ](https://www.rabbitmq.com/)** queues are the AMQP version of the same loop: prefetch (`basic.qos`) is backpressure, `ack` / `nack` / `reject(requeue=)` is the control, DLX is the dead letter. **[Azure Service Bus](https://azure.microsoft.com/products/service-bus)** queues add sessions (ordered per session id) and duplicate detection. **[Azure Queue Storage](https://azure.microsoft.com/products/storage/queues)** is the cheaper, dumber SQS-like buffer. **[Google Cloud Tasks](https://cloud.google.com/tasks)** is a queue aimed at **HTTP workers** (handoff with OIDC) rather than a long-lived AMQP client.
+
+**Working rule:** a queue is **one consumer per message**, **delete-on-ack** (or hide-then-delete), **buffer** between spike and drain. If a second team must read the same event later, you wanted a log or a subscription, not a queue they will race you for.
+
+#### At-Most-Once, At-Least-Once, and Exactly-Once
+
+Delivery guarantees are **what happens when something dies mid-flight**. They are not marketing. Distributed Systems will spend a whole heading on exactly-once illusions; here you need the production sentences so you do not write "exactly-once" on an [Amazon SQS](https://aws.amazon.com/sqs/) standard queue.
+
+```mermaid
+flowchart TB
+  send[Producer send]
+  broker[Broker stores]
+  work[Consumer works]
+  ack[Ack]
+  send --> broker --> work --> ack
+```
+
+| Guarantee | If the consumer dies after work, before ack | What you design | Typical product default |
+| --- | --- | --- | --- |
+| **At-most-once** | Work may **never** run (fire-and-forget, or ack-before-work) | Loss is OK: metrics you can drop, a log line | UDP-shaped paths, some MQTT, "publish and pray" |
+| **At-least-once** | Work may **run twice** (redelivery) | **Idempotent** consumer, or a dedup store | [Amazon SQS](https://aws.amazon.com/sqs/) standard, [RabbitMQ](https://www.rabbitmq.com/) with ack-after-work, [Apache Kafka](https://kafka.apache.org/) consumer default, [Google Cloud Pub/Sub](https://cloud.google.com/pubsub) |
+| **Effectively-once / exactly-once processing** | Duplicates are **detected** or **not committed twice** | Idempotency key + store, or a transactional outbox + broker feature | [SQS FIFO](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html) dedup window, [Kafka transactions](https://kafka.apache.org/documentation/#transactions) + idempotent producer, [Pulsar](https://pulsar.apache.org/) effectively-once, [Pub/Sub exactly-once](https://cloud.google.com/pubsub/docs/exactly-once-delivery) on pull |
+
+*The row you cannot afford is at-most-once for money. The row you cannot magically have is exactly-once without an idempotent side effect.*
+
+**At-most-once** is ack (or never store) **before** the side effect, or a best-effort datagram. Use it when a lost update is cheaper than a duplicate. Telemetry you already sampled is the honest example. Charging a card is not.
+
+**At-least-once** is the **default in this book**. Store, deliver, work, **then** ack. Crash between work and ack → redelivery. The consumer must treat "I might see this id again" as the contract. API Design already required idempotency keys on retried POSTs; the worker is the same rule with a broker instead of a client.
+
+**Exactly-once** in vendor copy usually means **exactly-once processing in a window**: [SQS FIFO](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html) deduplicates by id for 5 minutes; [Kafka](https://kafka.apache.org/) transactions make *consume-transform-produce* atomic across partitions you include; [Google Cloud Pub/Sub](https://cloud.google.com/pubsub) exactly-once is a pull + ack lease feature with limits. None of them make your `INSERT` into [PostgreSQL](https://www.postgresql.org/) exactly-once unless **you** upsert on a key. The outbox pattern ([Debezium](https://debezium.io/)) is how you avoid "DB commit succeeded, enqueue failed" — that is a **producer** exactly-once story, still at-least-once on the consumer.
+
+```mermaid
+sequenceDiagram
+  participant P as Producer
+  participant B as Broker
+  participant C as Consumer
+  participant D as Datastore
+  P->>B: send id=9
+  B->>C: deliver id=9
+  C->>D: upsert id=9
+  Note over C: crash before ack
+  B->>C: redeliver id=9
+  C->>D: upsert id=9
+  C->>B: ack
+```
+
+*At-least-once plus an idempotent upsert. Without the upsert, you emailed twice. "Exactly-once" that is only a broker checkbox does not update your schema.*
+
+**Working rule:** default **at-least-once + idempotent consumers**. Write the **idempotency key** (message id, order id) on the sketch. Say exactly-once only when you can name the **window**, the **side-effect store**, and what happens **after** the window.
+
+#### Backpressure and Poison Messages
+
+**Backpressure** is what you do when produce > consume. Without it the broker grows until it pages, the producer times out, or you drop. **A poison message** is one that **never** succeeds: bad payload, a bug, a downstream 400 that will not change. Retries without a ceiling turn poison into a hot partition that starves the rest of the queue.
+
+```mermaid
+flowchart TB
+  prod[Producer]
+  q[(Queue depth)]
+  workers[Workers]
+  dlq[(DLQ)]
+  prod --> q --> workers
+  workers -->|fail N times| dlq
+  q -.->|depth high| slow[Slow / reject producers]
+```
+
+*Two valves: slow the producer (or shed), and isolate poison so it cannot occupy every worker. Queue depth and DLQ age are the SLIs; "the broker is up" is not.*
+
+**Backpressure controls** — pick at least one, write it on the sketch:
+
+| Control | What it does | Trade-off |
+| --- | --- | --- |
+| **Prefetch / in-flight cap** | [RabbitMQ](https://www.rabbitmq.com/) `basic.qos`; [Amazon SQS](https://aws.amazon.com/sqs/) `MaxNumberOfMessages` + concurrency limit; [Apache Kafka](https://kafka.apache.org/) `max.poll.records` + pause partition | Too low starves CPU; too high is a memory queue on the worker |
+| **Pause / stop pull** | [Apache Kafka](https://kafka.apache.org/) consumer `pause`; [Google Cloud Pub/Sub](https://cloud.google.com/pubsub) outstanding-byte limits | Producer still writes; lag grows on purpose |
+| **Reject / timeout the producer** | HTTP 429 / 503 from the API that enqueues when depth > N | User sees the spike; that is honest |
+| **Scale consumers** | [AWS Auto Scaling](https://aws.amazon.com/autoscaling/) on queue depth, [Kubernetes Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) on a custom metric, [AWS Lambda](https://aws.amazon.com/lambda/) concurrency | The datastore behind the worker may be the real ceiling (Capacity Planning) |
+| **Drop / sample** | Telemetry, debug events | Not for money |
+
+**Poison / DLQ:**
+
+- **[Amazon SQS](https://aws.amazon.com/sqs/) [dead-letter queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html):** `maxReceiveCount` then move. Alarm on DLQ depth. A DLQ you never drain is a silent data-loss budget.
+- **[RabbitMQ](https://www.rabbitmq.com/) [dead-letter exchanges](https://www.rabbitmq.com/docs/dlx):** expired, rejected, or overflow. Route to a queue humans (or a replay job) consume.
+- **[Azure Service Bus](https://azure.microsoft.com/products/service-bus)** dead-letter subqueue; **[Google Cloud Pub/Sub](https://cloud.google.com/pubsub)** [dead-letter topic](https://cloud.google.com/pubsub/docs/handling-failures).
+- **[Apache Kafka](https://kafka.apache.org/)** has no DLQ as a primitive. You **produce** failures to a `.dlq` topic, or you **stop** the partition (lag becomes the pager). Pick one. Infinite retry on a bad JSON is how one poison key stalls a consumer group.
+
+**Retry shape:** exponential backoff **with jitter**, a **max**, then DLQ. Immediate requeue of poison is a tight loop that looks like throughput. Distinguish **transient** (503, lock, timeout) from **permanent** (400, schema). Transient belongs on a delay ([SQS delay](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-delay-queues.html) / visibility change; [RabbitMQ](https://www.rabbitmq.com/) delayed / TTL+DLX hop). Permanent belongs on the DLQ **now**.
+
+**Working rule:** finite in-flight, finite retries, a **DLQ with an owner**. Queue **depth** and **age of oldest message** are the golden signals of this hop. If poison can occupy every worker, you designed a self-DoS.
+
+### Publish-Subscribe and Event Streams
+
+**Publish-subscribe** is **fan-out**: one event, **many** independent consumers, each with its own pace. **Event streams** (logs) are pub/sub where the broker **keeps the history** so a new consumer can **replay**. Queues delete; logs retain.
+
+```mermaid
+flowchart LR
+  prod[Producer]
+  bus[Topic / bus]
+  mail[Mail worker]
+  search[Search indexer]
+  analytics[Analytics]
+  prod --> bus
+  bus --> mail
+  bus --> search
+  bus --> analytics
+```
+
+*One publish, three subscriptions. Mail being down must not block search. That is the point of a bus — if they share one queue, they are competing, not subscribed.*
+
+**[Amazon SNS](https://aws.amazon.com/sns/)** (plus SQS subscriptions), **[Azure Service Bus](https://azure.microsoft.com/products/service-bus) topics**, **[Azure Event Grid](https://azure.microsoft.com/products/event-grid)**, **[Google Cloud Pub/Sub](https://cloud.google.com/pubsub)**, **[Amazon EventBridge](https://aws.amazon.com/eventbridge/)** are **push or pull buses**. Filter on the bus ([EventBridge](https://aws.amazon.com/eventbridge/) rules, [SNS](https://aws.amazon.com/sns/) filter policies, [Pub/Sub](https://cloud.google.com/pubsub) filters) so each consumer is not a giant `if event.type`.
+
+**[Apache Kafka](https://kafka.apache.org/)** (and **[Redpanda](https://www.redpanda.com/)**, **[Apache Pulsar](https://pulsar.apache.org/)**, **[Amazon Kinesis](https://aws.amazon.com/kinesis/)**, **[Azure Event Hubs](https://azure.microsoft.com/products/event-hubs)**) is the **log**:
+
+- A **topic** is a named stream. A **partition** is an ordered append-only file. The **key** hashes to a partition (same key → same partition → order). No key → round-robin → **no order**.
+- A **consumer group** is a competing-consumer set **on that log**: each partition is owned by one member of the group. A **second group** is a second subscription with its own offsets. That is how search and mail both read `orders` without stealing work.
+- **Offset** is the bookmark. Commit it after the side effect (at-least-once) or before (at-most-once). **Replay** is "set the offset back" while the record is still inside **retention**.
+- **Retention** is time, size, or (Kafka) compaction (last value per key). Compaction is a changelog, not a cache — Caching already forbade treating the log as the only copy of money.
+
+```mermaid
+flowchart TB
+  subgraph topic [Topic orders]
+    p0[Partition 0]
+    p1[Partition 1]
+    p2[Partition 2]
+  end
+  subgraph g1 [Group search]
+    s1[Instance]
+    s2[Instance]
+  end
+  subgraph g2 [Group mail]
+    m1[Instance]
+  end
+  p0 --> s1
+  p1 --> s2
+  p2 --> s1
+  p0 --> m1
+  p1 --> m1
+  p2 --> m1
+```
+
+*Two groups, one topic. Search scales by splitting partitions. Mail can be one instance; it still sees every partition. Adding a group does not recopy the producer.*
+
+**[Apache Kafka](https://kafka.apache.org/)**
+
+- **Primary function:** durable partitioned log, consumer groups, replay, [Kafka Connect](https://kafka.apache.org/documentation/#connect) sources/sinks, transactions.
+- **When we send you here:** more than one downstream must read the same facts, or you must rewind. CDC with [Debezium](https://debezium.io/) lands here.
+- **What it is not:** not a request/response bus. Not a DLQ. Not "exactly-once" for your SQL without an idempotent write. A 7-day retention is not a data warehouse (Big Data patterns later).
+
+**[Amazon Kinesis Data Streams](https://aws.amazon.com/kinesis/data-streams/)** is the AWS-shaped log (shards = partitions, iterator = offset, retention 1–365 days). **[Amazon Kinesis Data Firehose](https://aws.amazon.com/firehose/)** is **ingest to S3/warehouse**, not a fan-out bus for app workers. **[Azure Event Hubs](https://azure.microsoft.com/products/event-hubs)** is the Azure twin (and speaks Kafka protocol). **[Redpanda](https://www.redpanda.com/)** is Kafka API without the JVM zoo. **[Redis](https://redis.io/) [Streams](https://redis.io/docs/latest/develop/data-types/streams/)** (`XADD` / `XREADGROUP`) is a small log when you already operate Redis and the volume fits memory-plus-AOF — it is not [Amazon MSK](https://aws.amazon.com/msk/). **[Redis](https://redis.io/) [Pub/Sub](https://redis.io/docs/latest/develop/pubsub/)** is **fire-and-forget**: no persistence, no replay, at-most-once. Use it for cache invalidation fan-out (last chapter), not for orders.
+
+**Working rule:** pub/sub when **independent** consumers need the **same** event. A log when they also need **replay** and **order per key**. A queue when **one** worker should do the job and then **forget** it.
+
+#### Queue vs Log vs Pub/Sub
+
+Three shapes. Mixing the words is how you buy [Apache Kafka](https://kafka.apache.org/) to send password-reset emails and then wonder where the ack went.
+
+```mermaid
+flowchart LR
+  subgraph queueShape [Queue]
+    q[Message disappears on ack]
+  end
+  subgraph logShape [Log]
+    l[Record stays; offset moves]
+  end
+  subgraph pubShape [Pub/Sub]
+    t[Each subscription gets a copy]
+  end
+```
+
+| | Queue | Log (stream) | Pub/Sub (bus) |
+| --- | --- | --- | --- |
+| Who does the work | **One** consumer | **One per group** per partition; **many groups** | **Every** subscription |
+| After success | Message **deleted** (or hidden then deleted) | Record **retained**; offset committed | Delivered to each subscriber's own queue/push |
+| Replay | Only via DLQ / redrive, or not at all | **Yes**, within retention | Usually no (unless the product *is* a log) |
+| Order | Optional (FIFO / session); otherwise none | **Per partition / key** | Per subscription, product-specific |
+| Backpressure | Depth on one buffer | Lag per group | Per-subscription outstanding |
+| Default products | [Amazon SQS](https://aws.amazon.com/sqs/), [RabbitMQ](https://www.rabbitmq.com/) queue, [Azure Service Bus](https://azure.microsoft.com/products/service-bus) queue | [Apache Kafka](https://kafka.apache.org/), [Kinesis](https://aws.amazon.com/kinesis/), [Event Hubs](https://azure.microsoft.com/products/event-hubs), [Pulsar](https://pulsar.apache.org/), [Redpanda](https://www.redpanda.com/) | [Amazon SNS](https://aws.amazon.com/sns/), [Google Cloud Pub/Sub](https://cloud.google.com/pubsub), [EventBridge](https://aws.amazon.com/eventbridge/), [Azure Event Grid](https://azure.microsoft.com/products/event-grid) |
+| Use | Jobs, emails, "do this once" | Facts many teams consume, CDC, replay | Fan-out to queues / HTTP / Lambda |
+
+*SNS→SQS is pub/sub **into** queues: the bus fans out, each team still has competing consumers. That composition is a design, not indecision.*
+
+**How you pick, on purpose:**
+
+1. **One worker, then gone** → queue. [Amazon SQS](https://aws.amazon.com/sqs/) / [RabbitMQ](https://www.rabbitmq.com/).
+2. **Many teams, same facts, rewind** → log. [Apache Kafka](https://kafka.apache.org/) / [Kinesis](https://aws.amazon.com/kinesis/).
+3. **One event, push to heterogeneous targets** (queue + HTTP + email) → pub/sub. [SNS](https://aws.amazon.com/sns/) / [EventBridge](https://aws.amazon.com/eventbridge/) / [Pub/Sub](https://cloud.google.com/pubsub).
+4. **Need 1 and 3** → pub/sub **into** queues, not a log you treat as a task list.
+5. **Need 2 and jobs** → log for the facts; a **task queue** (next heading) for the side effects that must not be stolen by a second group.
+
+**Working rule:** if two consumers must not share a message, you wanted a queue. If they must both see it, you wanted pub/sub or a second consumer group on a log. Draw copies, not vibes.
+
+### Task Queues
+
+A **task queue** (job queue, work queue) is a message queue **plus a runtime** for **jobs**: a named function, arguments, retries, delay, cron, a dashboard. The broker might be [Redis](https://redis.io/), [Amazon SQS](https://aws.amazon.com/sqs/), or [RabbitMQ](https://www.rabbitmq.com/); the **product** is the worker framework. This is how you run "send this email in 15 minutes" and "rebuild this thumbnail" without inventing AMQP routing keys.
+
+```mermaid
+sequenceDiagram
+  participant A as API
+  participant T as Task broker
+  participant W as Worker
+  participant S as Store / SMTP / S3
+  A->>T: enqueue SendEmail(user=9) delay=15m
+  A-->>A: request done
+  Note over T: wait
+  T->>W: job
+  W->>S: side effect
+  W->>T: ack / fail
+```
+
+*The API enqueues a **job**, not a domain event. Arguments are the contract. A worker process pool is the compute. Delay and retry are features of the framework.*
+
+**[Celery](https://docs.celeryq.dev/)** (Python; brokers [RabbitMQ](https://www.rabbitmq.com/), [Redis](https://redis.io/), [Amazon SQS](https://aws.amazon.com/sqs/); result backends optional)
+
+- **Primary function:** distributed task queue: `@task`, retries, countdown, crontab, routing, [Flower](https://flower.readthedocs.io/) for inspect.
+- **When we send you here:** Python app, jobs that are functions, you already have Redis or RabbitMQ.
+- **What it is not:** not an event log. Do not publish "OrderPlaced" into Celery for three other languages to consume — that is [Kafka](https://kafka.apache.org/) / [SNS](https://aws.amazon.com/sns/).
+
+**[Sidekiq](https://sidekiq.org/)** (Ruby; [Redis](https://redis.io/)), **[BullMQ](https://docs.bullmq.io/)** / **[Bull](https://github.com/OptimalBits/bull)** (Node; Redis), **[RQ](https://python-rq.org/)** (Python; Redis), **[Hangfire](https://www.hangfire.io/)** (.NET), **[Oban](https://github.com/sorentwo/oban)** (Elixir; [PostgreSQL](https://www.postgresql.org/)), **[Faktory](https://github.com/contribsys/faktory)**
+
+- **Primary function:** language-shaped job runtime on a small broker (often [Redis](https://redis.io/)).
+- **When we send you here:** the app language already has a default. Sidekiq is the Ruby default; BullMQ the Node default.
+- **What they are not:** [Redis](https://redis.io/)-as-broker is **not durable like [Amazon SQS](https://aws.amazon.com/sqs/)** unless you treat AOF / [Amazon MemoryDB](https://aws.amazon.com/memorydb/) as the RPO and have a story for a flushed [Redis](https://redis.io/) (jobs vanish). For money-adjacent jobs, prefer [SQS](https://aws.amazon.com/sqs/) / [Service Bus](https://azure.microsoft.com/products/service-bus) as the store of the job, even if the runtime is [AWS Lambda](https://aws.amazon.com/lambda/).
+
+**[Google Cloud Tasks](https://cloud.google.com/tasks)** and **[AWS Lambda](https://aws.amazon.com/lambda/)** + [SQS](https://aws.amazon.com/sqs/) (or [EventBridge Scheduler](https://aws.amazon.com/eventbridge/scheduler/)) are the **hosted** job shapes: you do not run a Sidekiq process; you run handlers. **[Temporal](https://temporal.io/)** (and similar workflow engines) is **not** a task queue — it is durable execution / sagas (Architectural Patterns, Distributed Systems). Do not start there to send email.
+
+**Job design rules that are this chapter, not a framework tutorial:**
+
+- **Idempotent jobs.** At-least-once. The same `job_id` may run twice.
+- **Small payloads.** Put the 200 MB CSV on [Amazon S3](https://aws.amazon.com/s3/) and enqueue the key. [Redis](https://redis.io/) and [Amazon SQS](https://aws.amazon.com/sqs/) are not blob stores (Databases and Storage).
+- **Delay and schedule** are first-class (visibility / ETA / cron). A `sleep` in the API is a synchronous path you failed to fork.
+- **Separate queues by SLO.** A 30-minute video transcode must not sit in the same prefetch as "password reset now." Priority queues or two brokers.
+- **Observe.** Failed job count, retry count, latency from enqueue to success. [Flower](https://flower.readthedocs.io/), [Sidekiq](https://sidekiq.org/) Web, [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/) on [SQS](https://aws.amazon.com/sqs/) age.
+
+**Working rule:** task queues run **functions with retries**. Event streams carry **facts**. Do not make [Celery](https://docs.celeryq.dev/) your enterprise bus, and do not make [Apache Kafka](https://kafka.apache.org/) your `perform_async`.
+
+### Long Polling, WebSockets, and Server-Sent Events
+
+Queues take work **off** the user request. Sometimes the user still wants the **result pushed** into a tab: a live feed, a progress bar, a chat typing indicator. That is a **live client path**, not a broker. Three HTTP-era tools; pick by **who speaks** and **who starts**.
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as Server
+  Note over C,S: Long poll
+  C->>S: GET /wait
+  S-->>C: 200 when event or timeout
+  C->>S: GET /wait
+  Note over C,S: SSE
+  C->>S: GET /events Accept text/event-stream
+  S-->>C: event
+  S-->>C: event
+  Note over C,S: WebSocket
+  C->>S: HTTP Upgrade
+  S-->>C: 101
+  C->>S: frame
+  S-->>C: frame
+```
+
+*Long poll is many short-ish HTTP holds. SSE is one long HTTP response, server→client. WebSocket is a bidirectional frame channel after an upgrade. All three still need a server that remembers the connection — that is state you load-balanced in Networking.*
+
+**Long polling.** The client **GETs** and the server **holds** until an event or a timeout, then the client immediately GETs again. It is still HTTP: works everywhere, ugly at scale (one request per wait, header overhead, proxy timeouts — [NGINX](https://nginx.org/) `proxy_read_timeout`). Use it when you cannot open a socket (old proxies, some corporate networks) or as a fallback. [RFC 6202](https://www.rfc-editor.org/rfc/rfc6202) compares it to SSE.
+
+**Server-Sent Events (SSE).** [MDN Server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events), [HTML Living Standard](https://html.spec.whatwg.org/multipage/server-sent-events.html), browser **[EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource)**. One HTTP response, `Content-Type: text/event-stream`, the server writes `data:` lines. **Server → client only.** Automatic reconnect + `Last-Event-ID`. Fine for: notifications, progress, a dashboard. Miserable for: client→server chat, binary, HTTP/1.1 connection limits from a browser (six per host — HTTP/2 helps). Proxies must not buffer ([NGINX](https://nginx.org/) `X-Accel-Buffering: no`).
+
+**WebSockets.** [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455), [MDN WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API). HTTP **Upgrade** to a bidirectional frame channel. Client and server both send. This is chat, collaborative cursors, game state, interactive terminals. **[Socket.IO](https://socket.io/)** (engine with fallback to long poll), raw `WebSocket` in browsers, **[AWS API Gateway WebSocket APIs](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-websocket-api.html)**, **[Azure Web PubSub](https://azure.microsoft.com/products/web-pubsub)**, **[Google Cloud Run](https://cloud.google.com/run)** / load balancers with WebSocket idle timeouts you must read.
+
+| | Long poll | SSE | WebSocket |
+| --- | --- | --- | --- |
+| Direction | Client pulls (held GET) | Server → client | Bidirectional |
+| Transport | Many HTTP requests | One HTTP response | Upgraded TCP (or HTTP/2/3 sketches; still a socket) |
+| Browser API | `fetch` / XHR | [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) | `WebSocket` / [Socket.IO](https://socket.io/) |
+| Proxies / LB | Easy; watch timeouts | Watch buffering | Need Upgrade + idle timeout ([ALB](https://aws.amazon.com/elasticloadbalancing/application-load-balancer/) / [NGINX](https://nginx.org/) `map $http_upgrade`) |
+| Use | Fallback, ugly live-ness | Notifications, ticks, logs to a tab | Chat, presence, interactive |
+
+*If the client must send often, WebSocket. If the server only ticks, SSE is simpler. If you cannot upgrade, long poll.*
+
+**The system-design tax** (this is why the heading lives here, not only in Networking):
+
+- **Sticky or shared state.** The connection **is** on one process. Horizontal scaling needs a **pub/sub backplane** so an event from worker A reaches the socket on worker B: [Redis](https://redis.io/) Pub/Sub, [Redis Streams](https://redis.io/docs/latest/develop/data-types/streams/), an [Apache Kafka](https://kafka.apache.org/) topic, [Amazon ElastiCache](https://aws.amazon.com/elasticache/). Sticky sessions are the crutch Networking already forbade as a session store.
+- **Fan-out.** One celebrity room is a hot key (Caching). An [NGINX](https://nginx.org/) box with 50k sockets is a capacity number; a process that **also** queries [PostgreSQL](https://www.postgresql.org/) per frame will not hold it. Split **connection tier** from **app**.
+- **Auth and idle.** Tickets expire; heartbeats detect dead NAT. Cloud LB idle timeouts (~60 s–4 min — read the SKU) will murder a quiet socket without pings.
+- **Not a queue.** A WebSocket is not durable. If the user is offline, you still need [SQS](https://aws.amazon.com/sqs/) / push / mail. Presence is a cache with a TTL; chat history is a store.
+
+**Working rule:** live **bytes to an online client** → SSE (one-way) or WebSocket (two-way). Live **work** still goes through a broker. Draw the **backplane** that fans events to the process that holds the socket, or you drew one box that will not scale.
+
+### WebRTC and Real-Time Media Paths
+
+**WebRTC** ([webrtc.org](https://webrtc.org/), [MDN WebRTC](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API), [W3C WebRTC](https://www.w3.org/TR/webrtc/)) is **real-time media and data** between browsers (and native apps): audio, video, data channels. It is **not** a message queue, **not** a WebSocket with extra steps, and **not** how you send "order placed." Design Zoom later reuses this heading; here you need the **two paths** so you do not put RTP through [Amazon SQS](https://aws.amazon.com/sqs/).
+
+```mermaid
+flowchart TB
+  a[Peer A]
+  b[Peer B]
+  sig[Signaling: HTTP / WebSocket]
+  stun[STUN]
+  turn[TURN relay]
+  a <-->|SDP / ICE via| sig
+  b <-->|SDP / ICE via| sig
+  a <-.->|ICE ping| stun
+  b <-.-> stun
+  a <-->|media if P2P| b
+  a <-->|media if NAT wins| turn
+  b <--> turn
+```
+
+*Signaling is a boring data path you already know (WebSocket / HTTPS). Media is a different path: UDP, ICE, optional relay. Mixing them in one [RabbitMQ](https://www.rabbitmq.com/) is how a video call gets a 200 ms visibility timeout.*
+
+**Signaling** (control): offer/answer **SDP**, ICE candidates, hangup. You implement this with HTTPS or a WebSocket. There is **no** WebRTC signaling server in the spec — [RFC 8825](https://www.rfc-editor.org/rfc/rfc8825) / [JSEP](https://www.rfc-editor.org/rfc/rfc8829) leave it to you. Any queue/bus in this chapter can carry signaling **messages**; they must be **low-latency and small**, not a Kinesis retention playground.
+
+**Media** (RTP/SRTP, often UDP): [ICE](https://www.rfc-editor.org/rfc/rfc8445) finds a path.
+
+- **[STUN](https://www.rfc-editor.org/rfc/rfc8489)** — "what is my public mapping?" so peers try P2P.
+- **[TURN](https://www.rfc-editor.org/rfc/rfc8656)** — **relay** when P2P fails (symmetric NAT, enterprise firewalls). **[coturn](https://github.com/coturn/coturn)** is the open TURN you actually run. Relays are **bandwidth and money**; a 1:1 call that always TURNs is a cost model.
+- **DTLS-SRTP** — media encryption. Different from the TLS session on your API.
+
+**When two peers are not enough** (meetings, webinars): a **selective forwarding unit (SFU)** receives each sender and forwards; an **MCU** mixes into one composite. [mediasoup](https://mediasoup.org/), [Janus](https://janus.conf.meetecho.com/), [Pion](https://github.com/pion/webrtc), [LiveKit](https://livekit.io/) are SFU-shaped. Design Zoom will pick SFU vs MCU; here: **N² P2P does not scale**, so a media server is a box on the sketch, not a WebSocket broadcast of JPEG frames.
+
+**[LiveKit](https://livekit.io/)**
+
+- **Primary function:** open, SFU-shaped real-time stack (WebRTC), rooms, recordings, hosted or self-host.
+- **When we send you here:** you want calls/rooms without inventing ICE/TURN/SFU on the first path.
+- **What it is not:** not your chat history store, not your signaling-only bus for non-media events.
+
+**[Twilio](https://www.twilio.com/docs/video) Video**, **[Daily](https://www.daily.co/)**, **[Agora](https://www.agora.io/)** — hosted WebRTC when you will not run [coturn](https://github.com/coturn/coturn) + an SFU. **[Amazon Chime SDK](https://aws.amazon.com/chime/chime-sdk/)** / **[Amazon IVS](https://aws.amazon.com/ivs/)** — AWS-shaped real-time or interactive video. Use them when the media **is** the product; do not put them on an order-processing diagram.
+
+**Data channels** (SCTP over DTLS) are a WebRTC side channel for bytes (game state, files). They still need signaling to set up. For ordinary JSON events to a tab, prefer WebSocket/SSE; WebRTC data channels win when you **already** have the ICE path (same call) or you need P2P without a server in the middle.
+
+**Working rule:** **signaling** = this chapter's WebSocket/HTTPS (or a small queue). **Media** = ICE + STUN/TURN + (for groups) an SFU. UDP loss is expected; a message broker is the wrong transport. If the sketch has "video" and only [Amazon SQS](https://aws.amazon.com/sqs/), you are not done.
+
+### Summary: Message Queues, Streams, and Real-Time Communication
+
+Async is a **fork the client does not wait on** — a 202, a job, an event — not a personality. **Brokers** store and forward under a contract ([RabbitMQ](https://www.rabbitmq.com/), [Amazon SQS](https://aws.amazon.com/sqs/), [Amazon SNS](https://aws.amazon.com/sns/), [Apache Kafka](https://kafka.apache.org/), [Pulsar](https://pulsar.apache.org/), [NATS](https://nats.io/), [Google Cloud Pub/Sub](https://cloud.google.com/pubsub), [Azure Service Bus](https://azure.microsoft.com/products/service-bus)). **Queues** are competing consumers and delete-on-ack; default **at-least-once + idempotent workers**; **exactly-once** needs a key and a store, not a checkbox; **backpressure** and a **DLQ with an owner** are the operational contract. **Pub/sub** fans out; **logs** ([Kafka](https://kafka.apache.org/), [Kinesis](https://aws.amazon.com/kinesis/), [Event Hubs](https://azure.microsoft.com/products/event-hubs), [Redpanda](https://www.redpanda.com/)) retain and replay per consumer group. **Task queues** ([Celery](https://docs.celeryq.dev/), [Sidekiq](https://sidekiq.org/), [BullMQ](https://docs.bullmq.io/), [Cloud Tasks](https://cloud.google.com/tasks)) run functions — they are not an enterprise event bus. **Live clients:** long poll as fallback, [SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events) one-way, [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) two-way, plus a **backplane** so sockets scale. **WebRTC** splits **signaling** from **media** ([ICE](https://www.rfc-editor.org/rfc/rfc8445), [STUN](https://www.rfc-editor.org/rfc/rfc8489), [TURN](https://www.rfc-editor.org/rfc/rfc8656), [coturn](https://github.com/coturn/coturn), [LiveKit](https://livekit.io/)). Draw the fork in [Excalidraw](https://excalidraw.com/). Next is **Architectural Patterns, Microservices, and Cloud-Native Architecture**.

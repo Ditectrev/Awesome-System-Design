@@ -35,6 +35,21 @@
 
 ---
 
+## Introduction to System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  client[Client]
+  lb[Load balancer]
+  app[Service]
+  store[(Datastore)]
+  client --> lb --> app --> store
+```
+
+*System design is the working path: components, contracts, operational qualities. Draw it in Excalidraw.*
+
+---
+
 ### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -75,6 +90,27 @@
 
 ---
 
+### What is System Design? <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  client[Client]
+  dns[DNS]
+  lb[Load balancer]
+  app[Service]
+  store[(Datastore)]
+  cache[(Cache)]
+  q[Queue]
+  client --> dns --> lb --> app
+  app --> store
+  app --> cache
+  app -.-> q
+```
+
+*A system is a request path plus the async fork — not a process and not a logo collage.*
+
+---
+
 ### What Problem System Design Solves <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -106,6 +142,21 @@
 * A failure story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * A way to operate it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * A bigger VM is one lever, not the skill <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### What Problem System Design Solves <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  load[Load]
+  data[Data]
+  fail[Failure]
+  lat[Latency vs correctness]
+  change[Change]
+```
+
+*The daily problems. A bigger VM is one lever, not the skill.*
 
 ---
 
@@ -150,6 +201,20 @@
 
 ---
 
+### System Design vs Software Design vs Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  sw[Software design: inside one service]
+  sys[System design: the working path]
+  arch[Architecture: the long-lived map]
+  sw --> sys --> arch
+```
+
+*Name the layer before you pick a box.*
+
+---
+
 ### Qualities You Design For <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -180,6 +245,21 @@
 * Multi-region consistency costs latency <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * A cache costs freshness <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Write the qualities that matter for this path, then pick <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Qualities You Design For <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  scale[Scalability]
+  avail[Availability]
+  rel[Reliability]
+  perf[Performance]
+  dr[Disaster recovery]
+```
+
+*You cannot maximize all of them. Write the qualities that matter for this path, then pick.*
 
 ---
 
@@ -259,6 +339,22 @@
 
 ---
 
+### Building Blocks You Will Name <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  cloud[Cloud]
+  compute[Compute]
+  data[(Store / cache / blobs)]
+  async[Queue / log]
+  edge[Edge]
+  obs[Telemetry]
+```
+
+*Name a product when the choice matters. An unlabeled database beats a logo you cannot explain.*
+
+---
+
 ### How We Practice <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -279,6 +375,21 @@
 * Name [Redis](https://redis.io/), [PostgreSQL](https://www.postgresql.org/), [Apache Kafka](https://kafka.apache.org/), [Cloudflare](https://www.cloudflare.com/) only when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Telemetry: [Prometheus](https://prometheus.io/) plus [Grafana](https://grafana.com/), or [Datadog](https://www.datadoghq.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Change one constraint and redraw <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### How We Practice <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  read[Read]
+  draw[Redraw]
+  name[Name a product]
+  change[Change one constraint]
+  read --> draw --> name --> change --> draw
+```
+
+*The working loop. Default canvas: Excalidraw. Notes: diagrams.net.*
 
 ---
 
@@ -346,6 +457,21 @@
 
 ---
 
+### How this book is organized <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  found[Foundations]
+  opt[Optional interview add-on]
+  applied[Applied designs]
+  close[Challenges + resources]
+  found --> opt --> applied --> close
+```
+
+*Foundations first. Interviews are optional. Applied designs at the end are not a substitute.*
+
+---
+
 ### Summary: Introduction to System Design <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -380,6 +506,20 @@
 * Draw in [Excalidraw](https://excalidraw.com/); name products when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * You cannot maximize every quality at once <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Next chapter: Networking, Protocols, and Web Concepts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Large-Scale Systems: Scalability, Availability, Reliability, and Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  load[Load]
+  data[Data]
+  fd[Failure domain]
+  geo[Geography]
+```
+
+*Large-scale starts when one box, one disk, or one failure domain is no longer the whole story.*
 
 ---
 
@@ -435,6 +575,26 @@
 * Front door: [AWS Elastic Load Balancing](https://aws.amazon.com/elasticloadbalancing/), [Google Cloud Load Balancing](https://cloud.google.com/load-balancing), [Azure Load Balancer](https://azure.microsoft.com/products/load-balancer) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Software: [NGINX](https://nginx.org/), [HAProxy](https://www.haproxy.org/), [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Say which lever, why the other is worse here, and what state is shared <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Scalability <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph vertical [Vertical]
+    v1[1 bigger box]
+  end
+  subgraph horizontal [Horizontal]
+    lb[Load balancer]
+    a1[Replica]
+    a2[Replica]
+    lb --> a1
+    lb --> a2
+  end
+```
+
+*Say which lever you are pulling, why the other is worse here, and what state the new box shares.*
 
 ---
 
@@ -578,6 +738,23 @@
 
 ---
 
+#### Availability in Sequence vs Parallel <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph seq [Sequence: multiply]
+    a[A] --> b[B] --> c[C]
+  end
+  subgraph par [Parallel: recover]
+    r1[Replica 1]
+    r2[Replica 2]
+  end
+```
+
+*Sequence costs nines. Independent replicas buy nines. Shared fate is still sequence.*
+
+---
+
 #### High Availability vs Fault Tolerance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -644,6 +821,26 @@
 
 ---
 
+#### Single Points of Failure <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  users[Users]
+  lb[Load balancer]
+  app1[App]
+  app2[App]
+  primary[(One primary)]
+  users --> lb
+  lb --> app1
+  lb --> app2
+  app1 --> primary
+  app2 --> primary
+```
+
+*Two app boxes do not remove a SPOF if they share one primary. Kill every box on the sketch.*
+
+---
+
 #### Failover and Redundancy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -697,6 +894,25 @@
 * Hard: multi-region writes — [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) [global tables](https://aws.amazon.com/dynamodb/global-tables/), multi-primary [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Stateless hops want active-active <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Stateful hops start active-passive with a tested failover <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Active-Active vs Active-Passive <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph passive [Active-passive]
+    p1[Active]
+    p2[Standby]
+    p1 -.-> p2
+  end
+  subgraph active [Active-active]
+    a1[Active]
+    a2[Active]
+  end
+```
+
+*Stateless hops want active-active. Stateful hops start active-passive with a tested failover.*
 
 ---
 
@@ -759,6 +975,20 @@
 
 ---
 
+#### SLA, SLO, and SLI <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  sli[SLI: measure]
+  slo[SLO: internal target]
+  sla[SLA: external contract]
+  sli --> slo --> sla
+```
+
+*Never let a vendor SLA stand in for your SLO.*
+
+---
+
 ### Performance <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -795,6 +1025,19 @@
 
 ---
 
+#### Latency vs Throughput vs Bandwidth <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  lat[Latency]
+  thr[Throughput]
+  bw[Bandwidth]
+```
+
+*Three axes. "Make it faster" is not a requirement. "p99 GET under 200 ms at 5k QPS" is.*
+
+---
+
 #### Tail Latency and Percentiles <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -815,6 +1058,23 @@
 * Traces: [OpenTelemetry](https://opentelemetry.io/); pictures: [Grafana](https://grafana.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * SLO the tail, not the mean <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * If the request fans out, the tail is the product <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Tail Latency and Percentiles <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  user[User request]
+  b1[Backend 1]
+  b2[Backend 2]
+  bn[Backend N]
+  user --> b1
+  user --> b2
+  user --> bn
+```
+
+*Fan-out takes the slowest of N. SLO the tail, not the mean.*
 
 ---
 
@@ -879,6 +1139,21 @@
 
 ---
 
+#### RPO, RTO, and Backup Strategies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  disaster[Disaster]
+  rpo[RPO: data lost]
+  rto[RTO: time down]
+  disaster --> rpo
+  disaster --> rto
+```
+
+*Write RPO and RTO as times. Then restore a backup once on purpose.*
+
+---
+
 #### Multi-Region and Multi-Datacenter Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -907,6 +1182,24 @@
 * Config, secrets, and identity are SPOFs you discover during the incident <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Active-passive multi-region is the default DR shape <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Active-active because the WAN arrow is unacceptable, plus a conflict story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Multi-Region and Multi-Datacenter Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph regionA [Region A]
+    az1[AZ 1]
+    az2[AZ 2]
+  end
+  subgraph regionB [Region B]
+    az3[AZ 1]
+  end
+  regionA -.->|WAN / replication| regionB
+```
+
+*Multi-AZ first. Multi-region when the threat is the region.*
 
 ---
 
@@ -940,6 +1233,21 @@
 * Blobs in [Amazon S3](https://aws.amazon.com/s3/); metadata in [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Cross-region p99 50 ms cannot work: WAN is already ~100 ms <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Cache near the user: [Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Capacity Planning and Back-of-the-Envelope Math <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  qps[1. QPS]
+  storage[2. Storage]
+  bandwidth[3. Bandwidth]
+  boxes[4. Boxes]
+  qps --> storage --> bandwidth --> boxes
+```
+
+*Powers of ten. Peak, not average. Then pick vertical vs horizontal vs a different data path.*
 
 ---
 
@@ -979,6 +1287,23 @@
 * Tools-heavy; no [CodeSandboxes](https://codesandbox.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Draw hops in [Excalidraw](https://excalidraw.com/); name products when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Next chapter: API Design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Networking, Protocols, and Web Concepts <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  dns[DNS]
+  tcp[TCP / QUIC]
+  tls[TLS]
+  http[HTTP]
+  lb[Proxy / LB]
+  app[App]
+  dns --> tcp --> tls --> http --> lb --> app
+```
+
+*Name the six hops. A missing hop is where your p99 went.*
 
 ---
 
@@ -1040,6 +1365,24 @@
 
 ---
 
+#### Public vs Private Addresses <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  user[User]
+  igw[Internet gateway]
+  lb[Public LB]
+  app[Private app]
+  nat[NAT gateway]
+  net[Internet]
+  user --> igw --> lb --> app
+  app --> nat --> net
+```
+
+*Users see public addresses. App processes live on RFC 1918 private space.*
+
+---
+
 ### The OSI Model <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -1067,6 +1410,20 @@
 * [Wireshark](https://www.wireshark.org/) and [tcpdump](https://www.tcpdump.org/): see the layer you thought you were on <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * A pcap is a microscope; [Prometheus](https://prometheus.io/) tells you which request to put under it <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Say L3, L4, or L7 for every front-door box <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### The OSI Model <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  l7[L7 HTTP]
+  l4[L4 TCP / UDP]
+  l3[L3 IP / VPC]
+  l7 --> l4 --> l3
+```
+
+*Working layers on a sketch: L3, L4, L7. Reciting all seven without picking L4 vs L7 is trivia.*
 
 ---
 
@@ -1099,6 +1456,21 @@
 * TCP if a missing byte is a bug <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * UDP if a late byte is worse than a missing one <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * [WebRTC](https://webrtc.org/) waits for a later chapter <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### TCP and UDP <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as Server
+  C->>S: SYN
+  S->>C: SYN-ACK
+  C->>S: ACK
+```
+
+*TCP if a missing byte is a bug. UDP if a late byte is worse than a missing one.*
 
 ---
 
@@ -1145,6 +1517,26 @@
 
 ---
 
+#### How DNS Resolution Works <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant Stub
+  participant Recursor
+  participant Root
+  participant TLD
+  participant Auth
+  Stub->>Recursor: lookup
+  Recursor->>Root: .com
+  Recursor->>TLD: example.com
+  Recursor->>Auth: A / AAAA
+  Recursor-->>Stub: address + TTL
+```
+
+*The TTL is failover math. On a product sketch, draw the authoritative product and the TTL.*
+
+---
+
 #### Record Types and Caching <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -1187,6 +1579,22 @@
 * Edge hop: [Cloudflare](https://www.cloudflare.com/), [Amazon CloudFront](https://aws.amazon.com/cloudfront/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Name the protocol version only when it changes a hop <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Always name the six steps <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### HTTP, HTTPS, and the Web Request Path <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  c[Client]
+  d[DNS]
+  e[Edge / LB]
+  a[App]
+  s[(Store)]
+  c --> d --> e --> a --> s
+```
+
+*Always name the six steps. Cloudflare or CloudFront at the edge is still a hop.*
 
 ---
 
@@ -1269,6 +1677,23 @@
 
 ---
 
+### TLS, SSL, and mTLS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  client[Client]
+  edge[Edge]
+  lb[Load balancer]
+  app[App]
+  client -->|TLS| edge
+  edge -->|TLS or HTTP| lb
+  lb -->|HTTP or TLS| app
+```
+
+*Say where TLS terminates, who issued the cert, and whether the next hop is HTTP or TLS again.*
+
+---
+
 ### Proxies <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -1300,6 +1725,22 @@
 * [NGINX](https://nginx.org/): TLS, path routing, buffering on VMs — one box is still a SPOF <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * [Envoy](https://www.envoyproxy.io/): programmable L4/L7, HTTP/2, gRPC, mTLS, mesh data plane <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * [Squid](https://www.squid-cache.org/) is the wrong direction for inbound <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Forward Proxy vs Reverse Proxy <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph fwd [Forward]
+    cli[Client] --> fp[Proxy] --> origin1[Origin]
+  end
+  subgraph rev [Reverse]
+    user[User] --> rp[Proxy] --> origin2[Your origin]
+  end
+```
+
+*Forward proxy is chosen by the client (egress). Reverse proxy is chosen by you (ingress).*
 
 ---
 
@@ -1359,6 +1800,26 @@
 
 ---
 
+#### Layer 4 vs Layer 7 Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph l4 [Layer 4]
+    nlb[IP + port]
+    nlb --> t1[Target]
+    nlb --> t2[Target]
+  end
+  subgraph l7 [Layer 7]
+    alb[Host / path]
+    alb -->|/api| api[API]
+    alb -->|/static| static[Static]
+  end
+```
+
+*HTTP user traffic → L7. Non-HTTP or TLS you must not terminate → L4.*
+
+---
+
 #### Routing Algorithms <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -1405,6 +1866,21 @@
 
 ---
 
+#### Health Checks, Sticky Sessions, and Failover <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  lb[Load balancer]
+  healthy[Healthy replica]
+  dead[Dead replica]
+  lb -->|GET /healthz ok| healthy
+  lb -.->|fail| dead
+```
+
+*Readiness gates traffic. Liveness restarts a process. Drain before you kill.*
+
+---
+
 ### Clustering vs Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
 
 ---
@@ -1424,6 +1900,25 @@
 * Datastores: cluster first, then maybe [HAProxy](https://www.haproxy.org/) TCP to the primary <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * A fleet of caches behind a balancer is not [Redis Cluster](https://redis.io/docs/latest/operate/oss_and_stack/management/scaling/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * If nodes vote or own a key range, you clustered <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Clustering vs Load Balancing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph balanced [Load balancing]
+    x[LB] --> s1[Stateless]
+    x --> s2[Stateless]
+  end
+  subgraph clustered [Clustering]
+    p[(Primary)]
+    r[(Replica)]
+    p --> r
+  end
+```
+
+*If nodes are interchangeable and stateless, you load balanced. If they vote or own a key range, you clustered.*
 
 ---
 
@@ -3038,6 +3533,417 @@ flowchart TB
 * CDN: pull by default, shield against a global miss storm <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * [CloudFront](https://aws.amazon.com/cloudfront/), [Cloudflare](https://www.cloudflare.com/), [Fastly](https://www.fastly.com/), [Akamai](https://www.akamai.com/), [Cloud CDN](https://cloud.google.com/cdn), [Front Door](https://azure.microsoft.com/products/frontdoor) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Draw it in [Excalidraw](https://excalidraw.com/). Next: Message Queues, Streams, and Real-Time Communication <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Message Queues, Streams, and Real-Time Communication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Message Queues, Streams, and Real-Time Communication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The last chapter was **derived copies** — this chapter is **paths that do not wait** <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No [CodeSandboxes](https://codesandbox.io/) — draw the fork in [Excalidraw](https://excalidraw.com/) first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name a product only when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter: Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Message Queues, Streams, and Real-Time Communication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  client[Client]
+  api[API]
+  q[(Queue / log)]
+  worker[Worker]
+  store[(Datastore)]
+  client -->|sync| api
+  api -->|202| client
+  api -->|enqueue| q
+  q --> worker
+  worker --> store
+```
+
+*The request returns. The work continues. A queue is a delivery contract, not a personality.*
+
+---
+
+### Synchronous vs Asynchronous Paths <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Synchronous vs Asynchronous Paths <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant A as API
+  participant Q as Queue
+  participant W as Worker
+  C->>A: POST /export
+  A->>Q: enqueue
+  A-->>C: 202
+  Q->>W: deliver
+```
+
+*If the client is still on the socket, you are synchronous. A 202 without a job id or a push is a shrug.*
+
+---
+
+### Synchronous vs Asynchronous Paths <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Stay sync when the user cannot take the next step without the result <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Fork async for slow work, load leveling, fan-out, decoupling <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Async is not a way to skip errors or correctness <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name where the work lives, who acks, how the client finds out <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Message Brokers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Message Brokers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  p1[Producer]
+  p2[Producer]
+  broker[Broker]
+  c1[Consumer]
+  c2[Consumer]
+  p1 --> broker
+  p2 --> broker
+  broker --> c1
+  broker --> c2
+```
+
+*Producers do not call consumers. Write shape, durability, delivery, order, fan-out, and retention before a logo.*
+
+---
+
+### Message Brokers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Queue: [Amazon SQS](https://aws.amazon.com/sqs/), [RabbitMQ](https://www.rabbitmq.com/), [Azure Service Bus](https://azure.microsoft.com/products/service-bus) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Pub/sub: [Amazon SNS](https://aws.amazon.com/sns/), [Google Cloud Pub/Sub](https://cloud.google.com/pubsub), [Amazon EventBridge](https://aws.amazon.com/eventbridge/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Log: [Apache Kafka](https://kafka.apache.org/), [Amazon MSK](https://aws.amazon.com/msk/), [Redpanda](https://www.redpanda.com/), [Apache Pulsar](https://pulsar.apache.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Small core: [NATS](https://nats.io/) + [JetStream](https://docs.nats.io/nats-concepts/jetstream) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A broker is not a database and not an API <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Message Queues <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Message Queues <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  prod[Producer]
+  q[(Queue)]
+  w1[Worker]
+  w2[Worker]
+  w3[Worker]
+  prod --> q
+  q --> w1
+  q --> w2
+  q --> w3
+```
+
+*Competing consumers: each message goes to one worker. Visibility timeout hides, it does not delete.*
+
+---
+
+### Message Queues <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Send → store → receive → work → ack <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Amazon SQS](https://aws.amazon.com/sqs/): standard vs FIFO; long poll; small payloads <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [RabbitMQ](https://www.rabbitmq.com/): prefetch, ack/nack, DLX <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Google Cloud Tasks](https://cloud.google.com/tasks): HTTP workers <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If a second team must read the same event later, you wanted a log <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### At-Most-Once, At-Least-Once, and Exactly-Once <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### At-Most-Once, At-Least-Once, and Exactly-Once <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| Guarantee | If the consumer dies after work | Design |
+| --- | --- | --- |
+| At-most-once | Work may never run | Loss is OK |
+| At-least-once | Work may run twice | Idempotent consumer |
+| Exactly-once processing | Duplicates detected in a window | Key + store, or a broker feature plus upsert |
+
+*Default in this book: at-least-once + idempotent workers. A checkbox is not your SQL.*
+
+---
+
+#### At-Most-Once, At-Least-Once, and Exactly-Once <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant B as Broker
+  participant C as Consumer
+  participant D as Datastore
+  B->>C: deliver id=9
+  C->>D: upsert id=9
+  Note over C: crash before ack
+  B->>C: redeliver id=9
+  C->>D: upsert id=9
+  C->>B: ack
+```
+
+*Without the upsert, you emailed twice. [SQS FIFO](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues-exactly-once-processing.html), [Kafka transactions](https://kafka.apache.org/documentation/#transactions), [Pub/Sub exactly-once](https://cloud.google.com/pubsub/docs/exactly-once-delivery) still need a side-effect key.*
+
+---
+
+#### Backpressure and Poison Messages <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Backpressure and Poison Messages <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  prod[Producer]
+  q[(Queue depth)]
+  workers[Workers]
+  dlq[(DLQ)]
+  prod --> q --> workers
+  workers -->|fail N times| dlq
+```
+
+*Finite in-flight, finite retries, a DLQ with an owner. Queue depth and age of oldest message are the SLIs.*
+
+---
+
+#### Backpressure and Poison Messages <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Prefetch / in-flight cap: [RabbitMQ](https://www.rabbitmq.com/) `basic.qos`, Kafka pause <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Scale consumers on depth — the datastore may still be the ceiling <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [SQS dead-letter queues](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html), [RabbitMQ DLX](https://www.rabbitmq.com/docs/dlx) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Kafka has no DLQ primitive — produce `.dlq` or stop the partition <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Immediate requeue of poison is a tight loop that looks like throughput <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Publish-Subscribe and Event Streams <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Publish-Subscribe and Event Streams <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  prod[Producer]
+  bus[Topic / bus]
+  mail[Mail]
+  search[Search]
+  analytics[Analytics]
+  prod --> bus
+  bus --> mail
+  bus --> search
+  bus --> analytics
+```
+
+*One publish, many subscriptions. Mail being down must not block search.*
+
+---
+
+### Publish-Subscribe and Event Streams <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Bus: [Amazon SNS](https://aws.amazon.com/sns/), [EventBridge](https://aws.amazon.com/eventbridge/), [Google Cloud Pub/Sub](https://cloud.google.com/pubsub), [Azure Event Grid](https://azure.microsoft.com/products/event-grid) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Log: [Apache Kafka](https://kafka.apache.org/), [Kinesis](https://aws.amazon.com/kinesis/), [Event Hubs](https://azure.microsoft.com/products/event-hubs), [Redpanda](https://www.redpanda.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Partition + key = order; consumer group = competing consumers on that log <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A second group is a second subscription with its own offsets <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Redis Pub/Sub](https://redis.io/docs/latest/develop/pubsub/) is fire-and-forget; [Redis Streams](https://redis.io/docs/latest/develop/data-types/streams/) is a small log <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Publish-Subscribe and Event Streams <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph topic [Topic orders]
+    p0[P0]
+    p1[P1]
+  end
+  subgraph g1 [Group search]
+    s1[Instance]
+  end
+  subgraph g2 [Group mail]
+    m1[Instance]
+  end
+  p0 --> s1
+  p1 --> s1
+  p0 --> m1
+  p1 --> m1
+```
+
+*Two groups, one topic. Adding a group does not recopy the producer. CDC lands here with [Debezium](https://debezium.io/).*
+
+---
+
+#### Queue vs Log vs Pub/Sub <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Queue vs Log vs Pub/Sub <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | Queue | Log | Pub/Sub |
+| --- | --- | --- | --- |
+| Who | One consumer | One per group; many groups | Every subscription |
+| After success | Deleted | Retained; offset moves | Delivered per subscriber |
+| Replay | Rare | Yes, within retention | Usually no |
+| Default | [SQS](https://aws.amazon.com/sqs/), [RabbitMQ](https://www.rabbitmq.com/) | [Kafka](https://kafka.apache.org/), [Kinesis](https://aws.amazon.com/kinesis/) | [SNS](https://aws.amazon.com/sns/), [Pub/Sub](https://cloud.google.com/pubsub) |
+
+*SNS→SQS is pub/sub into queues: a design, not indecision.*
+
+---
+
+#### Queue vs Log vs Pub/Sub <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* One worker, then gone → queue <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Many teams, same facts, rewind → log <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Push to heterogeneous targets → pub/sub <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Need 1 and 3 → pub/sub into queues, not a log as a task list <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If two consumers must not share a message, you wanted a queue <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Task Queues <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Task Queues <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant A as API
+  participant T as Task broker
+  participant W as Worker
+  A->>T: enqueue SendEmail delay=15m
+  Note over T: wait
+  T->>W: job
+  W->>T: ack / fail
+```
+
+*A named function, arguments, retries, delay, cron. The broker might be Redis or SQS; the product is the runtime.*
+
+---
+
+### Task Queues <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Celery](https://docs.celeryq.dev/) (Python); [Sidekiq](https://sidekiq.org/) (Ruby); [BullMQ](https://docs.bullmq.io/) (Node) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Also [RQ](https://python-rq.org/), [Hangfire](https://www.hangfire.io/), [Oban](https://github.com/sorentwo/oban), [Faktory](https://github.com/contribsys/faktory) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hosted: [Google Cloud Tasks](https://cloud.google.com/tasks), [AWS Lambda](https://aws.amazon.com/lambda/) + [SQS](https://aws.amazon.com/sqs/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Temporal](https://temporal.io/) is durable execution — not how you send email on day one <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Idempotent jobs, small payloads, separate queues by SLO <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not make Celery your enterprise bus, or Kafka your `perform_async` <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Long Polling, WebSockets, and Server-Sent Events <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Long Polling, WebSockets, and Server-Sent Events <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as Server
+  Note over C,S: Long poll / SSE / WebSocket
+  C->>S: hold / stream / Upgrade
+  S-->>C: event
+```
+
+*Live bytes to an online client — not a durable queue. Offline users still need SQS / push / mail.*
+
+---
+
+### Long Polling, WebSockets, and Server-Sent Events <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | Long poll | SSE | WebSocket |
+| --- | --- | --- | --- |
+| Direction | Held GET | Server → client | Bidirectional |
+| API | `fetch` | [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) | `WebSocket` / [Socket.IO](https://socket.io/) |
+| Use | Fallback | Notifications, ticks | Chat, presence |
+
+*[RFC 6202](https://www.rfc-editor.org/rfc/rfc6202), [MDN SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events), [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455).*
+
+---
+
+### Long Polling, WebSockets, and Server-Sent Events <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Connection is state on one process — you need a backplane <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Backplane: [Redis](https://redis.io/) Pub/Sub or Streams, a Kafka topic, [Amazon ElastiCache](https://aws.amazon.com/elasticache/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [AWS API Gateway WebSocket APIs](https://docs.aws.amazon.com/apigateway/latest/developerguide/apigateway-websocket-api.html), [Azure Web PubSub](https://azure.microsoft.com/products/web-pubsub) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Watch LB idle timeouts; heartbeats detect dead NAT <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Sticky sessions are still not a session store <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### WebRTC and Real-Time Media Paths <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### WebRTC and Real-Time Media Paths <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  a[Peer A]
+  b[Peer B]
+  sig[Signaling]
+  stun[STUN]
+  turn[TURN]
+  a <--> sig
+  b <--> sig
+  a <-.-> stun
+  b <-.-> stun
+  a <-->|P2P media| b
+  a <--> turn
+  b <--> turn
+```
+
+*Signaling is HTTP / WebSocket. Media is ICE + UDP. Do not put RTP through [Amazon SQS](https://aws.amazon.com/sqs/).*
+
+---
+
+### WebRTC and Real-Time Media Paths <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Spec: [webrtc.org](https://webrtc.org/), [MDN WebRTC](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API), [W3C](https://www.w3.org/TR/webrtc/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [ICE](https://www.rfc-editor.org/rfc/rfc8445), [STUN](https://www.rfc-editor.org/rfc/rfc8489), [TURN](https://www.rfc-editor.org/rfc/rfc8656), [coturn](https://github.com/coturn/coturn) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Groups: SFU, not N² P2P — [mediasoup](https://mediasoup.org/), [Janus](https://janus.conf.meetecho.com/), [LiveKit](https://livekit.io/), [Pion](https://github.com/pion/webrtc) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hosted: [Twilio](https://www.twilio.com/docs/video) Video, [Daily](https://www.daily.co/), [Agora](https://www.agora.io/), [Amazon Chime SDK](https://aws.amazon.com/chime/chime-sdk/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Design Zoom later reuses SFU vs MCU; this heading is the two paths <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Message Queues, Streams, and Real-Time Communication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Message Queues, Streams, and Real-Time Communication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Async is a fork the client does not wait on — a 202, a job, an event <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Queue: competing consumers, delete-on-ack, [SQS](https://aws.amazon.com/sqs/) / [RabbitMQ](https://www.rabbitmq.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Default at-least-once + idempotent workers; DLQ with an owner <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Pub/sub fans out; logs retain and replay ([Kafka](https://kafka.apache.org/), [Kinesis](https://aws.amazon.com/kinesis/)) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Task queues run functions — not an enterprise bus <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Message Queues, Streams, and Real-Time Communication <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Live clients: long poll, [SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events), [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) + a backplane <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* WebRTC: signaling vs media; [STUN](https://www.rfc-editor.org/rfc/rfc8489) / [TURN](https://www.rfc-editor.org/rfc/rfc8656) / SFU <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw the fork in [Excalidraw](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next: Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
         </textarea>
 
       </section>
