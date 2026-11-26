@@ -3944,6 +3944,675 @@ flowchart TB
 * WebRTC: signaling vs media; [STUN](https://www.rfc-editor.org/rfc/rfc8489) / [TURN](https://www.rfc-editor.org/rfc/rfc8656) / SFU <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Draw the fork in [Excalidraw](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
 * Next: Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+## Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* The last chapter was **async forks** — this chapter is **how boxes are cut, named, and run** <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* No [CodeSandboxes](https://codesandbox.io/) — draw the boundary in [Excalidraw](https://excalidraw.com/) first <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Name a product only when the choice matters <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next chapter: Distributed Systems <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+## Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  client[Client]
+  gw[API Gateway]
+  subgraph mono [One deploy]
+    m[Modular monolith]
+  end
+  subgraph many [Many deploys]
+    s1[Service A]
+    s2[Service B]
+  end
+  bus[(Event bus)]
+  client --> gw
+  gw --> m
+  gw --> s1
+  s1 --> bus
+  bus --> s2
+```
+
+*A gateway and a bus do not create a boundary. Draw the cut first.*
+
+---
+
+### N-Tier and Layered Architectures <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### N-Tier and Layered Architectures <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  web[Presentation]
+  api[Application]
+  db[(Data)]
+  web --> api --> db
+```
+
+*Tiers are processes. Layers are dependency direction. Presentation does not SQL.*
+
+---
+
+### N-Tier and Layered Architectures <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Hexagonal architecture](https://alistair.cockburn.us/hexagonal-architecture/): domain in the middle, ports at the edge <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Clean / onion is the same idea with rings <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A 3-tier CRUD app is a valid architecture <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* If every box can call every box, you have a pile <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Monoliths, Modular Monoliths, and Microservices <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Monoliths, Modular Monoliths, and Microservices <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph monolith [Monolith]
+    m1[One deploy]
+    db1[(One DB)]
+    m1 --> db1
+  end
+  subgraph modular [Modular monolith]
+    a[Module A]
+    b[Module B]
+    db2[(One DB)]
+    a --> db2
+    b --> db2
+  end
+  subgraph micro [Microservices]
+    sa[Service A]
+    sb[Service B]
+    da[(DB A)]
+    dbB[(DB B)]
+    sa --> da
+    sb --> dbB
+  end
+```
+
+*The cut that matters is deploy and data, not folder count. [Fowler, Microservices](https://martinfowler.com/articles/microservices.html).*
+
+---
+
+### Monoliths, Modular Monoliths, and Microservices <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | Monolith | Modular monolith | Microservices |
+| --- | --- | --- | --- |
+| Deploy | One | One | Many |
+| Data | One store | Module-owned schemas | Database per service |
+| Failure | Process down = site down | Same | Partial — if you designed it |
+
+*[Ruby on Rails](https://rubyonrails.org/), [Django](https://www.djangoproject.com/), [Spring Boot](https://spring.io/projects/spring-boot) as one app still scale horizontally.*
+
+---
+
+### Monoliths, Modular Monoliths, and Microservices <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Default: modular monolith you can extract from <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Strangler Fig](https://martinfowler.com/bliki/StranglerFigApplication.html): new work to the new service <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Microservices buy independent deploy, scale, and failure <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* They cost a network hop, no joins, and an org that owns the cuts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Smart endpoints, dumb pipes — not a central ESB <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### When Microservices Are the Wrong Answer <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### When Microservices Are the Wrong Answer <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  q{Cut with own data, SLO, and on-call?}
+  q -->|no| mm[Modular monolith]
+  q -->|yes, one team of 4| still[Still a modular monolith]
+  q -->|yes, isolate failure| ms[Extract that one service]
+```
+
+*Extract one boundary. Eight services owned by three people is an on-call spreadsheet.*
+
+---
+
+#### When Microservices Are the Wrong Answer <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* "We will be huge" is not a cut — replicas of a monolith scale a long way <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A controller is not a service; a capability is <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kubernetes](https://kubernetes.io/) will happily run one Deployment <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A queue does not require microservices <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Minimum: own data, own contract, own SLO, own pager <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Microservices vs SOA <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Microservices vs SOA <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph soa [SOA]
+    a1[Service] --> esb[ESB]
+    esb --> a2[Service]
+  end
+  subgraph ms [Microservices]
+    b1[Service] -->|HTTP / events| b2[Service]
+    b1 --> bus[(Dumb bus)]
+  end
+```
+
+*SOA: the bus is the product. Microservices: the bus is a pipe. [MuleSoft](https://www.mulesoft.com/) still exists for the first shape.*
+
+---
+
+#### Microservices vs SOA <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* SOA: coarse services, smart ESB, often a canonical XML model <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Microservices: bounded contexts, dumb pipes, database per service <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A central orchestrator with all the if-statements is an ESB <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Autonomy accepts duplicate projections — derived copies with an owner <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### The Distributed Monolith <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### The Distributed Monolith <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  gw[Gateway]
+  s1[Orders]
+  s2[Inventory]
+  s3[Users]
+  db[(Shared schema)]
+  gw --> s1
+  s1 --> s2
+  s1 --> s3
+  s1 --> db
+  s2 --> db
+  s3 --> db
+```
+
+*Many processes, one blast radius. You paid the network tax and kept the coupling.*
+
+---
+
+#### The Distributed Monolith <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Shared tables / lockstep deploys / synchronous hairballs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A "common" JAR of business types is an ESB in your build <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Undo: stop shared tables, outbox, one async hop, timeouts <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A mesh will retry, mTLS, and trace a hairball — still a hairball <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Service Discovery and Service Mesh <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Service Discovery and Service Mesh <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  subgraph clientSide [Client-side]
+    c1[Client] --> reg[Registry]
+    c1 --> i1[Instance]
+  end
+  subgraph mesh [Mesh]
+    c2[App + sidecar] --> i2[App + sidecar]
+  end
+```
+
+*Find instances, then (optionally) put retries, mTLS, and timeouts in a data plane.*
+
+---
+
+### Service Discovery and Service Mesh <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Kubernetes](https://kubernetes.io/) Service + [CoreDNS](https://coredns.io/) is default discovery <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Consul](https://www.consul.io/) for VMs / [Nomad](https://www.nomadproject.io/); [Amazon Cloud Map](https://aws.amazon.com/cloud-map/) / [VPC Lattice](https://aws.amazon.com/vpc/lattice/) on AWS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Eureka](https://github.com/Netflix/eureka) only if you already have it — not on new [Kubernetes](https://kubernetes.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Data plane: [Envoy](https://www.envoyproxy.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Meshes: [Istio](https://istio.io/), [Linkerd](https://linkerd.io/), [Cilium](https://cilium.io/) — pick **one** <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Dapr](https://dapr.io/) is a programming sidecar, not a mesh <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Circuit Breakers and Bulkheads <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Circuit Breakers and Bulkheads <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+stateDiagram-v2
+  [*] --> Closed
+  Closed --> Open: failures >= threshold
+  Open --> HalfOpen: reset timeout
+  HalfOpen --> Closed: probe ok
+  HalfOpen --> Open: probe fail
+```
+
+*[Fowler, Circuit Breaker](https://martinfowler.com/bliki/CircuitBreaker.html). Without a timeout, the breaker never trips.*
+
+---
+
+### Circuit Breakers and Bulkheads <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  req[Incoming]
+  poolA[Pool: billing]
+  poolB[Pool: search]
+  req --> poolA --> bill[Billing]
+  req --> poolB --> search[Search]
+```
+
+*Bulkheads. One shared executor is how a slow dependency becomes a site outage.*
+
+---
+
+### Circuit Breakers and Bulkheads <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Every sync hop: timeout, retry budget, breaker, bulkhead <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Resilience4j](https://resilience4j.readme.io/) — not archived [Hystrix](https://github.com/Netflix/Hystrix) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Polly](https://github.com/App-vNext/Polly), [opossum](https://github.com/nodeshift/opossum), [gobreaker](https://github.com/sony/gobreaker) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Envoy](https://www.envoyproxy.io/) outlier detection / [Istio DestinationRule](https://istio.io/latest/docs/reference/config/networking/destination-rule/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Mesh ejects a Pod; in-process bulkhead saves the thread pool — often both <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Event-Driven Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Event-Driven Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  api[Orders API]
+  log[(Log / bus)]
+  mail[Mail]
+  search[Search]
+  api --> db[(Orders DB)]
+  api -->|OrderPlaced| log
+  log --> mail
+  log --> search
+```
+
+*A command has an addressee. An event has subscribers. Mail down must not fail PlaceOrder.*
+
+---
+
+### Event-Driven Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph choreo [Choreography]
+    e1[OrderPlaced] --> e2[PaymentCaptured]
+  end
+  subgraph orch [Orchestration]
+    w[Workflow] --> p[Pay]
+    w --> i[Reserve]
+  end
+```
+
+*Choreograph notifications. Orchestrate money: [Temporal](https://temporal.io/), [AWS Step Functions](https://aws.amazon.com/step-functions/), [Camunda](https://camunda.com/).*
+
+---
+
+### Event-Driven Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Not "we have [Apache Kafka](https://kafka.apache.org/)" — a log can still be a task queue <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Events are an API: [AsyncAPI](https://www.asyncapi.com/), [Avro](https://avro.apache.org/) / [Protobuf](https://protobuf.dev/) + a registry <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Facts: [Kafka](https://kafka.apache.org/), [Kinesis](https://aws.amazon.com/kinesis/), [Redpanda](https://www.redpanda.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Heterogeneous targets: [EventBridge](https://aws.amazon.com/eventbridge/), [Event Grid](https://azure.microsoft.com/products/event-grid), [Eventarc](https://cloud.google.com/eventarc) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Outbox so the fact does not vanish after the commit <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Event Sourcing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Event Sourcing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  cmd[Command]
+  store[(Event store)]
+  fold[Fold / snapshot]
+  proj[Projections]
+  cmd --> store
+  store --> fold
+  store --> proj
+```
+
+*The log is the record. [Fowler, Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html). Publishing to Kafka is not this.*
+
+---
+
+### Event Sourcing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Use when audit / time travel / rebuild is the product <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Skip for CRUD that is actually CRUD <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Stream per aggregate, snapshots, versioned events, redaction story <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [EventStoreDB](https://www.eventstore.com/), [Axon](https://axoniq.io/), [Marten](https://martendb.io/) on [PostgreSQL](https://www.postgresql.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not store money only in a compacted topic you cannot redact <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### CQRS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### CQRS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  cmd[Command]
+  write[(Write model)]
+  bus[(Events)]
+  read[(Read model)]
+  query[Query]
+  cmd --> write --> bus --> read
+  query --> read
+```
+
+*[Fowler, CQRS](https://martinfowler.com/bliki/CQRS.html). Two models because two questions. Lag is an SLO.*
+
+---
+
+### CQRS <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Pays off when read shape ≠ write shape, or scale diverges <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A replica is the same model, copied — not CQRS <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Two tables and a trigger in one DB is a view — call it a view <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Read-your-writes: hit the write model, or 202 + a version token <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Event sourcing is optional; so is CQRS without a log <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Big Data Architecture Patterns <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Big Data Architecture Patterns <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  src[App DBs / events]
+  ingest[Ingest]
+  proc[Batch / stream]
+  serve[Warehouse / lake]
+  src --> ingest --> proc --> serve
+```
+
+*Checkout still uses an application database. This estate answers different questions.*
+
+---
+
+#### Batch vs Stream Processing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Batch vs Stream Processing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | Batch | Stream |
+| --- | --- | --- |
+| Input | Bounded | Unbounded |
+| Latency | Minutes to hours | Seconds to minutes |
+| Tools | [Spark](https://spark.apache.org/), [dbt](https://www.getdbt.com/), [Airflow](https://airflow.apache.org/) | [Flink](https://flink.apache.org/), [Kafka Streams](https://kafka.apache.org/documentation/streams/), [Beam](https://beam.apache.org/) |
+
+*Stream when the decision cannot wait. Batch when a closed period must be correct.*
+
+---
+
+#### Batch vs Stream Processing <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph batch [Batch]
+    files[(Snapshot)] --> job[Job]
+  end
+  subgraph stream [Stream]
+    ev[Event] --> op[Operator]
+  end
+```
+
+*Watermarks and late data are the stream tax. A Spark job on every HTTP request is the wrong path.*
+
+---
+
+#### Lambda and Kappa <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Lambda and Kappa <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph lambdaArch [Lambda architecture]
+    src1[Source] --> batchL[Batch]
+    src1 --> speedL[Speed]
+    batchL --> servingL[Serving]
+    speedL --> servingL
+  end
+  subgraph kappaArch [Kappa]
+    src2[Log] --> streamL[One proc]
+    streamL --> servingK[Serving]
+  end
+```
+
+*Lambda: two codepaths that must agree. Kappa: replay the log. Not [AWS Lambda](https://aws.amazon.com/lambda/).*
+
+---
+
+#### Lambda and Kappa <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Marz](http://nathanmarz.com/blog/how-to-beat-the-cap-theorem.html) batch + speed + serving <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kreps, Questioning the Lambda Architecture](https://www.confluent.io/blog/questioning-the-lambda-architecture/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Prefer Kappa when CDC + [Kafka](https://kafka.apache.org/) + [Flink](https://flink.apache.org/) is the estate <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Keep Lambda when nightly batch is the legal number <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Data Lakes, Warehouses, and Lakehouses <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Data Lakes, Warehouses, and Lakehouses <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+| | Lake | Warehouse | Lakehouse |
+| --- | --- | --- | --- |
+| Store | [S3](https://aws.amazon.com/s3/) / [GCS](https://cloud.google.com/storage) | [Snowflake](https://www.snowflake.com/), [BigQuery](https://cloud.google.com/bigquery), [Redshift](https://aws.amazon.com/redshift/) | [Iceberg](https://iceberg.apache.org/), [Delta Lake](https://delta.io/), [Hudi](https://hudi.apache.org/) |
+| Schema | On read | On write | Table format |
+
+*Land raw in a lake. Serve humans from tables with owners. A lake without a catalog is a bucket.*
+
+---
+
+#### Data Lakes, Warehouses, and Lakehouses <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Ingest: [Debezium](https://debezium.io/), [Fivetran](https://www.fivetran.com/), [Airbyte](https://airbyte.com/), [Kafka Connect](https://kafka.apache.org/documentation/#connect) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Orchestrate: [Airflow](https://airflow.apache.org/), [Dagster](https://dagster.io/), [Prefect](https://www.prefect.io/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Transform: [dbt](https://www.getdbt.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Query the lake: [Trino](https://trino.io/), [Athena](https://aws.amazon.com/athena/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Do not point checkout at [Snowflake](https://www.snowflake.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### MapReduce and Its Descendants <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### MapReduce and Its Descendants <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  in[(Splits)] --> map[Map]
+  map --> shuffle[Shuffle]
+  shuffle --> red[Reduce]
+```
+
+*[Dean & Ghemawat](https://research.google/pubs/mapreduce-simplified-data-processing-on-large-clusters/). You still draw the shuffle. You rarely submit raw [Hadoop MapReduce](https://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html).*
+
+---
+
+#### MapReduce and Its Descendants <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Apache Spark](https://spark.apache.org/) — default batch / lake compute <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Apache Flink](https://flink.apache.org/) — true streaming, Kappa pipelines <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Apache Beam](https://beam.apache.org/) on [Dataflow](https://cloud.google.com/dataflow) — portable API <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Kafka Streams](https://kafka.apache.org/documentation/streams/) / [ksqlDB](https://ksqldb.io/) when the job fits Kafka <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hosted: [EMR](https://aws.amazon.com/emr/), [Dataproc](https://cloud.google.com/dataproc), [Databricks](https://www.databricks.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  users[Users]
+  edge[DNS / LB / CDN]
+  orch[Orchestrator]
+  svc[Stateless services]
+  managed[(Managed data)]
+  users --> edge --> orch --> svc --> managed
+```
+
+*[CNCF](https://www.cncf.io/): containerized, orchestrated, loosely coupled. Not "we rent [EC2](https://aws.amazon.com/ec2/)." A monolith on [Kubernetes](https://kubernetes.io/) still counts.*
+
+---
+
+#### VMs vs Containers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### VMs vs Containers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  subgraph vm [VM]
+    hv[Hypervisor]
+    g1[Guest OS]
+    hv --> g1
+  end
+  subgraph ctr [Containers]
+    host[Host kernel]
+    c1[Container]
+    host --> c1
+  end
+```
+
+*[Docker](https://www.docker.com/) is the UX. [containerd](https://containerd.io/) / [CRI-O](https://cri-o.io/) is what [Kubernetes](https://kubernetes.io/) runs. Same kernel: a kernel CVE is a fleet CVE.*
+
+---
+
+#### VMs vs Containers <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* VMs: [EC2](https://aws.amazon.com/ec2/), [GCE](https://cloud.google.com/compute), [Azure VMs](https://azure.microsoft.com/products/virtual-machines) — strong isolation <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* MicroVMs: [Firecracker](https://firecracker-microvm.github.io/) under [Lambda](https://aws.amazon.com/lambda/) / [Fargate](https://aws.amazon.com/fargate/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Containers without a cluster: [Cloud Run](https://cloud.google.com/run), [App Runner](https://aws.amazon.com/apprunner/), [Azure Container Apps](https://azure.microsoft.com/products/container-apps) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* One container per VM is not density <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Orchestration, Twelve-Factor, and Stateless Services <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Orchestration, Twelve-Factor, and Stateless Services <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart LR
+  want[Desired: 3]
+  orch[Orchestrator]
+  n1[Node]
+  want --> orch --> n1
+  orch -.->|pod died| orch
+```
+
+*[Kubernetes](https://kubernetes.io/), [Amazon ECS](https://aws.amazon.com/ecs/), [Nomad](https://www.nomadproject.io/). You declare 3. The loop makes 3. Readiness probes are how it knows.*
+
+---
+
+#### Orchestration, Twelve-Factor, and Stateless Services <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [Twelve-Factor](https://12factor.net/): config in env, backing services as URLs, disposable processes <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Stateless: any replica can take the next request <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Session in [Redis](https://redis.io/) or a JWT; uploads to [S3](https://aws.amazon.com/s3/); jobs in [SQS](https://aws.amazon.com/sqs/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Hosted k8s: [EKS](https://aws.amazon.com/eks/), [GKE](https://cloud.google.com/kubernetes-engine), [AKS](https://azure.microsoft.com/products/kubernetes-service) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Helm](https://helm.sh/) / [Kustomize](https://kustomize.io/) package YAML — they are not a cut <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+#### Managed Building Blocks vs Running Your Own <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+#### Managed Building Blocks vs Running Your Own <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+```mermaid
+flowchart TB
+  q{Is this box the product?}
+  q -->|yes| own[Run your own]
+  q -->|no| mng[Managed]
+```
+
+*"We know Kafka" is not a reason. A missing region, a forbidden extension, or a wrong SLO is.*
+
+---
+
+#### Managed Building Blocks vs Running Your Own <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* [PostgreSQL](https://www.postgresql.org/): [RDS](https://aws.amazon.com/rds/) / [Aurora](https://aws.amazon.com/rds/aurora/) / [Cloud SQL](https://cloud.google.com/sql) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* [Redis](https://redis.io/): [ElastiCache](https://aws.amazon.com/elasticache/); [Kafka](https://kafka.apache.org/): [MSK](https://aws.amazon.com/msk/) / [Confluent Cloud](https://www.confluent.io/confluent-cloud/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Operators ([CloudNativePG](https://cloudnative-pg.io/), [Strimzi](https://strimzi.io/)) are still your pager <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Prefer open protocols for exit: Postgres, Kafka API, Redis, S3, [OCI](https://opencontainers.org/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* A [CNCF Landscape](https://landscape.cncf.io/) screenshot is not a design <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+---
+
+### Summary: Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Boundaries you can operate — not a logo slide <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Default modular monolith; microservices when a cut has data, SLO, and on-call <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Distributed monolith: many processes, one blast radius <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Discovery + one mesh; every sync hop: timeout, retry, breaker, bulkhead <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* EDA: commands in, versioned events out; ES = log as record; CQRS = two models <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+
+---
+
+### Summary: Architectural Patterns, Microservices, and Cloud-Native Architecture <!-- .slide: data-transition="zoom" data-transition-speed="slow" -->
+
+* Batch vs stream; Lambda vs Kappa; lake / warehouse / lakehouse; shuffle still costs <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Cloud-native: [Twelve-Factor](https://12factor.net/), containers, orchestration, managed stores <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Draw the cut in [Excalidraw](https://excalidraw.com/) <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
+* Next: Distributed Systems <!-- .element: class="fragment custom blur highlight-current-blue fade-up" -->
         </textarea>
 
       </section>
