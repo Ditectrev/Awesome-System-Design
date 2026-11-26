@@ -4130,3 +4130,771 @@ flowchart TB
 ### Summary: Message Queues, Streams, and Real-Time Communication
 
 Async is a **fork the client does not wait on** — a 202, a job, an event — not a personality. **Brokers** store and forward under a contract ([RabbitMQ](https://www.rabbitmq.com/), [Amazon SQS](https://aws.amazon.com/sqs/), [Amazon SNS](https://aws.amazon.com/sns/), [Apache Kafka](https://kafka.apache.org/), [Pulsar](https://pulsar.apache.org/), [NATS](https://nats.io/), [Google Cloud Pub/Sub](https://cloud.google.com/pubsub), [Azure Service Bus](https://azure.microsoft.com/products/service-bus)). **Queues** are competing consumers and delete-on-ack; default **at-least-once + idempotent workers**; **exactly-once** needs a key and a store, not a checkbox; **backpressure** and a **DLQ with an owner** are the operational contract. **Pub/sub** fans out; **logs** ([Kafka](https://kafka.apache.org/), [Kinesis](https://aws.amazon.com/kinesis/), [Event Hubs](https://azure.microsoft.com/products/event-hubs), [Redpanda](https://www.redpanda.com/)) retain and replay per consumer group. **Task queues** ([Celery](https://docs.celeryq.dev/), [Sidekiq](https://sidekiq.org/), [BullMQ](https://docs.bullmq.io/), [Cloud Tasks](https://cloud.google.com/tasks)) run functions — they are not an enterprise event bus. **Live clients:** long poll as fallback, [SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events) one-way, [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) two-way, plus a **backplane** so sockets scale. **WebRTC** splits **signaling** from **media** ([ICE](https://www.rfc-editor.org/rfc/rfc8445), [STUN](https://www.rfc-editor.org/rfc/rfc8489), [TURN](https://www.rfc-editor.org/rfc/rfc8656), [coturn](https://github.com/coturn/coturn), [LiveKit](https://livekit.io/)). Draw the fork in [Excalidraw](https://excalidraw.com/). Next is **Architectural Patterns, Microservices, and Cloud-Native Architecture**.
+
+## Architectural Patterns, Microservices, and Cloud-Native Architecture
+
+Message Queues, Streams, and Real-Time Communication gave you the **fork the client does not wait on**. This chapter is how those boxes are **cut, named, and run**: layers vs a blob, one deploy vs many, a mesh vs hope, events as a style (not a broker logo), big-data shapes, and what "cloud-native" actually commits you to. We stay tools-heavy. There are no [CodeSandboxes](https://codesandbox.io/). You practice by drawing the **boundary** in [Excalidraw](https://excalidraw.com/) first — who deploys together, who can fail alone, what the contract is — then naming a product ([Kubernetes](https://kubernetes.io/), [Istio](https://istio.io/), [Apache Kafka](https://kafka.apache.org/), [Amazon EKS](https://aws.amazon.com/eks/)) only when the choice matters. The next chapter is Distributed Systems — clocks, consensus, and partitions that this chapter's many boxes will hit.
+
+An architecture is not a slide of logos. It is a **set of boundaries you can operate**: deploy independently, fail independently, scale independently — or honestly admit you cannot, and keep a modular monolith. Miss the boundary and you bought a **distributed monolith**: many repos, one blast radius, and a mesh that retries a deadlock.
+
+```mermaid
+flowchart TB
+  client[Client]
+  gw[API Gateway]
+  subgraph mono [One deploy]
+    m[Modular monolith]
+  end
+  subgraph many [Many deploys]
+    s1[Service A]
+    s2[Service B]
+    s3[Service C]
+  end
+  bus[(Event bus / log)]
+  client --> gw
+  gw --> m
+  gw --> s1
+  s1 --> bus
+  bus --> s2
+  bus --> s3
+```
+
+*Pick the cut first. A gateway, a bus, and [Kubernetes](https://kubernetes.io/) do not create a boundary — they host one you already drew in [Excalidraw](https://excalidraw.com/).*
+
+### N-Tier and Layered Architectures
+
+**N-tier** (presentation, application, data — sometimes more) is a **physical** split: different processes, often different machines. **Layered** is a **logical** split inside a process: UI / API, domain, persistence. You can have layers in one binary (a modular monolith) and tiers across a fleet. Mixing the words is how a three-box sketch becomes "we are microservices."
+
+```mermaid
+flowchart TB
+  subgraph presentation [Presentation tier]
+    web[Web / mobile]
+  end
+  subgraph application [Application tier]
+    api[API / domain]
+  end
+  subgraph data [Data tier]
+    db[(Database)]
+    cache[(Cache)]
+  end
+  web --> api --> db
+  api --> cache
+```
+
+*Classic 3-tier. The arrows are allowed dependencies. Presentation does not SQL. Data does not render HTML. If every box can call every box, you do not have tiers — you have a pile.*
+
+**What the layers are for:**
+
+- **Presentation / edge:** browsers, mobile, [Amazon CloudFront](https://aws.amazon.com/cloudfront/) / a BFF (API Design already used Backend for Frontend). This tier speaks HTTP to users. It does not own money.
+- **Application / domain:** the rules. One process or many. This is where "place order" lives — not in a stored procedure you cannot test, and not in the [React](https://react.dev/) tree.
+- **Data:** [PostgreSQL](https://www.postgresql.org/), [Redis](https://redis.io/), [Amazon S3](https://aws.amazon.com/s3/). Databases and Storage already picked engines. Here you only need: the domain does not leak table shapes into the presentation contract.
+
+**Hexagonal / ports and adapters** ([Cockburn, Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)) is layered architecture with the domain in the **middle** and **ports** (interfaces) at the edge: HTTP adapter, message adapter, SQL adapter all face inward. **Clean / onion** is the same idea with concentric rings. Use the vocabulary your team already has; the design is **dependencies point toward the domain**, not toward [Spring](https://spring.io/) or [Django](https://www.djangoproject.com/).
+
+**When N-tier is the whole design:** a CRUD product, one database, one web tier, maybe a worker. Networking already put a load balancer in front. That is a valid architecture. It is not "legacy" just because it is not a mesh.
+
+**When layers rot:** a "service" that is a collection of controllers calling other controllers, or a domain that imports `HttpServletRequest`. The test is: can you swap the HTTP adapter for a queue adapter without rewriting the rule? If not, you have a **layer-shaped pile**.
+
+**Working rule:** tiers are **processes**; layers are **dependency direction**. Draw both. A 3-tier sketch with a circular dependency is not N-tier. Next heading is how many *deploys* those layers become.
+
+### Monoliths, Modular Monoliths, and Microservices
+
+A **monolith** is **one deployable** that owns many features. A **modular monolith** is still one deployable, with **modules** (packages, bounded contexts) that may not import each other's internals. **Microservices** ([Fowler, Microservices](https://martinfowler.com/articles/microservices.html)) are **many deployables**, each with its **own** process, data, and release train, talking over a network contract (API Design's REST / gRPC, or this chapter's events).
+
+```mermaid
+flowchart LR
+  subgraph monolith [Monolith]
+    m1[UI + domain + jobs]
+    db1[(One DB)]
+    m1 --> db1
+  end
+  subgraph modular [Modular monolith]
+    modA[Module A]
+    modB[Module B]
+    db2[(One DB, module schemas)]
+    modA --> db2
+    modB --> db2
+  end
+  subgraph micro [Microservices]
+    sa[Service A]
+    sb[Service B]
+    da[(DB A)]
+    dbB[(DB B)]
+    sa --> da
+    sb --> dbB
+    sa -. HTTP / events .-> sb
+  end
+```
+
+*The cut that matters is **deploy and data**, not folder count. Three [Maven](https://maven.apache.org/) modules in one JAR are a modular monolith. Three JARs that share one [PostgreSQL](https://www.postgresql.org/) schema are a distributed monolith in waiting.*
+
+| | Monolith | Modular monolith | Microservices |
+| --- | --- | --- | --- |
+| Deploy | One | One | Many |
+| Process boundary | None | None (modules are compile-time) | Network |
+| Data | Usually one store | One store, **module-owned** schemas / tables | **Database per service** (logical; may share a cluster) |
+| Failure | Process down is the site down | Same, unless you already have workers | One service down is a **partial** outage — if you designed it that way |
+| Transaction | Local ACID (Databases) | Local ACID across modules if they share the DB | Sagas / outbox — you already met these |
+| When we send you here | One team, one product, you cannot name a cut | You can name bounded contexts but not independent SLOs yet | Independent scale, independent release, **independent failure** you can actually isolate |
+
+**A monolith is not an insult.** [Ruby on Rails](https://rubyonrails.org/), [Django](https://www.djangoproject.com/), [Laravel](https://laravel.com/), [Spring Boot](https://spring.io/projects/spring-boot) as one app is how most products ship. Horizontal scaling (Large-Scale Systems) still works: many replicas of the same binary behind a load balancer (Networking). The tax is **one** release, **one** runtime, **one** way to take the site down.
+
+**A modular monolith** is the default we want you to outgrow *from*, not skip. Modules talk through **public APIs in-process**. You can later extract a module to a service **when** it has its own scale, its own data, and a team that on-calls it. [Strangler Fig](https://martinfowler.com/bliki/StranglerFigApplication.html) is that extraction: new work goes to the new service; the monolith shrinks; a gateway or a facade routes. Extracting "everything" in month one is not strangler — it is a rewrite.
+
+**Microservices** buy you:
+
+- **Independent deploy.** Billing ships on Tuesday without waiting on Search's freeze.
+- **Independent scale.** The thumbnail worker is not the checkout SLO.
+- **Independent failure** — only if Circuit Breakers and Bulkheads (below) exist. Otherwise one slow dependency is still a site outage.
+- **Polyglot** only when it is worth the operational cost. A new language is a new on-call, a new heap, a new CVE stream.
+
+They cost you: a network hop (latency + failure), **data that no longer joins**, distributed tracing (Monitoring and Observability later), and an org that can own the cuts. Fowler's original test still holds: **smart endpoints, dumb pipes** — not a central [ESB](https://www.ibm.com/topics/esb) that contains the business rules.
+
+**Working rule:** start **modular monolith** unless you already have a cut with its own data, SLO, and team. Microservices are a **packaging of bounded contexts**, not a count of Git repos. If two "services" share a database and a release, you drew a monolith with extra YAML.
+
+#### When Microservices Are the Wrong Answer
+
+Microservices fail as a **fashion**. They succeed as a **response to a constraint you can name**. If you cannot name the constraint, keep the modular monolith.
+
+```mermaid
+flowchart TB
+  q{Can you name a cut with its own data, SLO, and on-call?}
+  q -->|no| mm[Modular monolith]
+  q -->|yes, but one team of 4| still[Still a modular monolith]
+  q -->|yes, and independent failure matters| ms[Extract that one service]
+```
+
+*Extract **one** boundary. A fleet of eight services owned by three people is an on-call spreadsheet, not an architecture.*
+
+**Wrong answers we want you to refuse out loud:**
+
+- **"We will be huge."** Capacity Planning is a later heading in Large-Scale Systems you already have — replicas of a monolith scale a long way. You do not need 40 services to add a second [Amazon EC2](https://aws.amazon.com/ec2/) instance.
+- **"Each controller is a service."** That is functions with a network tax. A service owns a **capability** (checkout, identity, catalog), not a URL.
+- **"Different languages for fun."** Polyglot is a cost. Pay it when a runtime is the actual constraint (a [Python](https://www.python.org/) ML worker next to a [Go](https://go.dev/) proxy), not as a résumé.
+- **"Kubernetes means we are cloud-native microservices."** [Kubernetes](https://kubernetes.io/) will happily run one Deployment. Orchestration is a later heading.
+- **"We need microservices to use a queue."** Message Queues already ran workers beside a monolith. An outbox from one [PostgreSQL](https://www.postgresql.org/) is an architecture; eight chats over HTTP is not.
+
+**Minimum viable service** (write this on the sketch before you split):
+
+1. **Own data.** No `SELECT` into another service's tables. If you still join across the cut, you are not split.
+2. **Own contract.** Versioned API (API Design) or versioned events (this chapter). Breaking that contract is an incident.
+3. **Own SLO.** Availability math from Large-Scale Systems: if checkout is 99.9% and you added five synchronous dependencies at 99.9%, you did not improve checkout.
+4. **Own on-call.** A service with no pager is a library you deployed as a network call.
+
+**Working rule:** if the split does not change **failure, scale, or release**, it is a folder. Keep the folder. Extract when a module is the incident.
+
+#### Microservices vs SOA
+
+**Service-Oriented Architecture (SOA)** was the previous generation of "many services": coarse services, often a shared **enterprise service bus (ESB)** that **transforms, routes, and contains orchestration**. **Microservices** keep the "many services" idea and reject the **smart bus**. The pipe is a dumb broker or HTTP; the intelligence stays in the services.
+
+```mermaid
+flowchart LR
+  subgraph soa [SOA]
+    a1[Service] --> esb[ESB]
+    esb --> a2[Service]
+    esb --> a3[Service]
+  end
+  subgraph ms [Microservices]
+    b1[Service] -->|HTTP / events| b2[Service]
+    b1 -->|publish| bus[(Dumb bus)]
+    bus --> b3[Service]
+  end
+```
+
+*SOA: the bus is the product. Microservices: the bus is a pipe ([Apache Kafka](https://kafka.apache.org/), [Amazon SQS](https://aws.amazon.com/sqs/), [Amazon EventBridge](https://aws.amazon.com/eventbridge/)). If your [Kafka](https://kafka.apache.org/) consumers are thin and a central "orchestrator service" has all the if-statements, you rebuilt an ESB.*
+
+| | SOA (classic) | Microservices |
+| --- | --- | --- |
+| Granularity | Coarse, often department-sized | Smaller, **bounded context** |
+| Integration | **Smart ESB** (transform, orchestrate, protocol) | **Dumb pipe** + smart endpoints |
+| Contract | Often SOAP / WS-* / shared canonical XML | REST / [gRPC](https://grpc.io/) / events; **no** enterprise-wide canonical model required |
+| Data | Shared databases were common | Database per service |
+| Governance | Central platform dictates | Per-service; a platform **paves roads** (mesh, golden images) without owning rules |
+| Alive products | [MuleSoft](https://www.mulesoft.com/), [IBM App Connect](https://www.ibm.com/products/app-connect), [TIBCO](https://www.tibco.com/) still exist for this shape | [Kubernetes](https://kubernetes.io/) + a broker + an API gateway |
+
+**Reuse vs duplication.** SOA optimized for **reuse** of a canonical Customer. Microservices optimize for **autonomy** and accept some duplication (a `CustomerId` and a local projection). Caching already taught you derived copies; a projection is a derived copy with an owner.
+
+**Working rule:** if a central bus **contains** the business process, you are doing SOA — say so, and budget for the bus team. If services **publish facts** and others **react**, you are in this chapter's Event-Driven Architecture. Neither is "more modern" than a modular monolith that ships.
+
+#### The Distributed Monolith
+
+A **distributed monolith** is many processes that **must** deploy together, **must** be up together, and **share** data or types so tightly that "independent" is a slide. You paid the **network tax** of microservices and kept the **coupling** of a monolith.
+
+```mermaid
+flowchart TB
+  gw[Gateway]
+  s1[Orders]
+  s2[Inventory]
+  s3[Billing]
+  s4[Users]
+  db[(Shared schema)]
+  gw --> s1
+  s1 --> s2
+  s1 --> s3
+  s1 --> s4
+  s2 --> s4
+  s3 --> s4
+  s1 --> db
+  s2 --> db
+  s3 --> db
+  s4 --> db
+```
+
+*Every request fans out. Every service shares the database. A Users deploy breaks Orders. That is one system with extra latency — not four.*
+
+**How you know you have one:**
+
+- **Shared database / shared tables.** Two services `JOIN` the same `orders`. Databases and Storage already forbade this as a split.
+- **Lockstep deploys.** You cannot ship Inventory without Orders because of a protobuf field, a shared library that is *the* domain, or a "start order" that is a distributed transaction without a saga.
+- **Synchronous hairballs.** Checkout calls five services on the user path, no timeouts, no bulkheads. Availability in sequence (Large-Scale Systems) already did the math.
+- **Shared "common" library** that contains **business types** (`Order`, `Money`) versioned on a weekly train. A logging SDK is fine. A canonical model JAR that every service must bump in the same hour is an ESB in your build.
+- **One "microservice" that is actually a script** another service waits on. If A cannot return 200 unless B completed a side effect *in this request*, you have a distributed monolith with extra YAML.
+
+**How you undo it** (pick a cut, do not "add a mesh"):
+
+1. **Stop the shared tables.** Each service gets a schema it owns; others get an API or an event. Outbox (Databases) so the write and the event commit together.
+2. **Make one hop async** that is not on the user critical path (last chapter).
+3. **Put a timeout and a fallback** on every remaining sync hop (next headings).
+4. **Version the contract.** Additive fields; API Design's backward compatibility.
+
+A service mesh will **not** fix a distributed monolith. It will retry it, mTLS it, and trace it. That is still a hairball with better dashboards.
+
+**Working rule:** count **blast radius**, not repo count. If a Users outage is an Orders outage, you have one system. Draw it as one until a cut actually isolates failure.
+
+### Service Discovery and Service Mesh
+
+Once you have more than one process, **clients must find instances**. **Service discovery** is that lookup. A **service mesh** is discovery **plus** a data plane that owns retries, timeouts, mTLS, and (often) circuit breaking — so every language does not reimplement Networking's load balancer inside the app.
+
+```mermaid
+flowchart LR
+  subgraph clientSide [Client-side discovery]
+    c1[Client] --> reg1[Registry]
+    c1 --> i1[Instance]
+  end
+  subgraph serverSide [Server-side discovery]
+    c2[Client] --> lb[LB / proxy]
+    lb --> reg2[Registry]
+    lb --> i2[Instance]
+  end
+  subgraph mesh [Mesh]
+    c3[Client + sidecar] --> i3[Instance + sidecar]
+    c3 -. control .-> ctl[Control plane]
+  end
+```
+
+*Three ways to find a peer. Client-side: the app queries a registry ([Consul](https://www.consul.io/), [Eureka](https://github.com/Netflix/eureka)). Server-side: a load balancer already did this in Networking. Mesh: sidecars talk; the app talks to `localhost`.*
+
+**Service discovery you will name:**
+
+**[Kubernetes](https://kubernetes.io/) [Services](https://kubernetes.io/docs/concepts/services-networking/service/) and [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/)** ([CoreDNS](https://coredns.io/))
+
+- **Primary function:** a Service is a stable name + ClusterIP (or headless). kube-proxy / [ipvs](https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies) / [Cilium](https://cilium.io/) eBPF implements the VIP. Pods register by existing; readiness gates traffic.
+- **When we send you here:** default on [Kubernetes](https://kubernetes.io/). `orders.default.svc.cluster.local` is discovery. You do not also need [Eureka](https://github.com/Netflix/eureka) unless you brought it.
+- **What it is not:** not multi-cluster DNS by itself (you want [Istio](https://istio.io/) east-west, [Cilium Cluster Mesh](https://docs.cilium.io/en/stable/network/clustermesh/), or an explicit gateway). Not a substitute for a public API gateway (API Design).
+
+**[Consul](https://www.consul.io/)** ([HashiCorp](https://www.hashicorp.com/))
+
+- **Primary function:** registry + health + DNS/HTTP catalog; [Consul service mesh](https://developer.hashicorp.com/consul/docs/connect) (Envoy sidecars) if you want the mesh too. Works off-cluster (VMs).
+- **When we send you here:** mixed [Amazon EC2](https://aws.amazon.com/ec2/) + containers, or you already operate Consul for KV. [Nomad](https://www.nomadproject.io/) shops often land here.
+- **What it is not:** not [etcd](https://etcd.io/). [etcd](https://etcd.io/) is [Kubernetes](https://kubernetes.io/)'s store and a raw consensus box (Distributed Systems later) — do not build your service registry on it unless you are writing [Kubernetes](https://kubernetes.io/).
+
+**[Amazon Cloud Map](https://aws.amazon.com/cloud-map/)**, **[ECS Service Connect](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-connect.html)**, **[AWS Cloud WAN](https://aws.amazon.com/cloud-wan/)** / **[VPC Lattice](https://aws.amazon.com/vpc/lattice/)**
+
+- **Primary function:** AWS-shaped registry and service-to-service networking without you running [Consul](https://www.consul.io/). Lattice is an application-layer network across VPCs/accounts.
+- **When we send you here:** native AWS, [Amazon ECS](https://aws.amazon.com/ecs/) or mixed compute, you do not want a mesh control plane on day one.
+- **What they are not:** not [Istio](https://istio.io/). Policy depth is different; so is the operational tax.
+
+**[Eureka](https://github.com/Netflix/eureka)** ([Spring Cloud Netflix](https://spring.io/projects/spring-cloud-netflix)) is the classic **client-side** registry. Fine in a [Spring](https://spring.io/) estate that already has it. New greenfield on [Kubernetes](https://kubernetes.io/): use Services, not a second registry.
+
+**Service mesh** you will name:
+
+**[Envoy](https://www.envoyproxy.io/)** is the **data plane** most meshes use: sidecar proxy, L7, retries, outlier detection, TLS. [API Gateways](https://aws.amazon.com/api-gateway/) in the last API chapter often *are* Envoy ([Kong](https://konghq.com/), [Ambassador / Emissary](https://www.getambassador.io/), [Contour](https://projectcontour.io/)). A mesh is Envoy **beside every instance**, not only at the edge.
+
+**[Istio](https://istio.io/)**
+
+- **Primary function:** control plane ([Istiod](https://istio.io/latest/docs/ops/deployment/architecture/)) configuring [Envoy](https://www.envoyproxy.io/) sidecars (or [ambient](https://istio.io/latest/docs/ambient/) without per-pod sidecars): mTLS, traffic shifting, retries, timeouts, circuit breaking, telemetry.
+- **When we send you here:** many services, mixed languages, you **need** mTLS and consistent timeouts **without** rewriting every app. [GKE](https://cloud.google.com/kubernetes-engine) / [Amazon EKS](https://aws.amazon.com/eks/) / [AKS](https://azure.microsoft.com/products/kubernetes-service) all run it; [Cloud Service Mesh](https://cloud.google.com/service-mesh) is Google's managed Istio-shaped product; [Istio on AKS](https://learn.microsoft.com/en-us/azure/aks/istio-about) is the Azure addon.
+- **What it is not:** not a reason to split a monolith. Not a substitute for timeouts **in the client** if you have no mesh yet. Heavy: you now operate a control plane.
+
+**[Linkerd](https://linkerd.io/)**
+
+- **Primary function:** lighter [CNCF](https://www.cncf.io/) mesh; [Rust](https://www.rust-lang.org/) micro-proxy; mTLS, retries, timeouts; smaller operational surface than [Istio](https://istio.io/).
+- **When we send you here:** you want mesh primitives and will not use Istio's full traffic-API zoo.
+- **What it is not:** not [Envoy](https://www.envoyproxy.io/) (different data plane). Feature set is narrower on purpose.
+
+**[Cilium](https://cilium.io/)** ([eBPF](https://ebpf.io/)): kube-proxy replacement, NetworkPolicy, optional [Cilium Service Mesh](https://docs.cilium.io/en/stable/network/servicemesh/) / [Gateway API](https://gateway-api.sigs.k8s.io/). When the platform team already standardized on Cilium for NetworkPolicy, do not add a second mesh "for Istio slides."
+
+**[Dapr](https://dapr.io/)** is **not** a mesh. It is a **programming sidecar** (pub/sub, state, bindings). A mesh is **traffic**. You can run both; you should not confuse them on the sketch.
+
+**Working rule:** on [Kubernetes](https://kubernetes.io/), **Service + DNS** is discovery until you have a **cross-cutting traffic policy** (mTLS everywhere, one retry budget). Then pick **one** mesh and put **timeouts, retries, and circuit breakers** in it — not in three frameworks *and* the mesh. Server-side discovery (a load balancer) is still valid; it is Networking, and it still works.
+
+### Circuit Breakers and Bulkheads
+
+A **timeout** stops waiting. A **retry** tries again (with jitter — last chapter). A **circuit breaker** ([Fowler, Circuit Breaker](https://martinfowler.com/bliki/CircuitBreaker.html)) **stops calling** a dependency that is already failing, so you fail fast and give it room to recover. A **bulkhead** **isolates** resources so one dependency cannot take the whole process (separate thread pools, connection pools, queues, or [Kubernetes](https://kubernetes.io/) resource quotas).
+
+```mermaid
+stateDiagram-v2
+  [*] --> Closed
+  Closed --> Open: failures >= threshold
+  Open --> HalfOpen: after reset timeout
+  HalfOpen --> Closed: probe success
+  HalfOpen --> Open: probe failure
+```
+
+*Closed: calls pass; failures are counted. Open: calls fail immediately (or hit a fallback). Half-open: a probe. Without a timeout, the breaker never sees a failure — it sees a thread that waits forever.*
+
+```mermaid
+flowchart LR
+  req[Incoming]
+  subgraph process [One process]
+    poolA[Pool: billing]
+    poolB[Pool: search]
+    poolC[Pool: catalog]
+  end
+  req --> poolA --> bill[Billing]
+  req --> poolB --> search[Search]
+  req --> poolC --> cat[Catalog]
+```
+
+*Bulkheads. Billing latency saturates **its** pool. Search still has threads. One shared executor is how a slow dependency becomes a site outage.*
+
+**The call policy you write on every sync hop** (all four, not "we have Istio"):
+
+| Lever | What it does | If you skip it |
+| --- | --- | --- |
+| **Timeout** | Bounded wait | Threads / sockets pile up; the breaker never trips |
+| **Retry + jitter + budget** | Survive a blip | Retry storms (stampede, last chapters) |
+| **Circuit breaker** | Fail fast while the dependency is down | Every request piles into a dead pool |
+| **Bulkhead** | Cap concurrency per dependency | One client of a slow API starves the others |
+
+**Libraries and data planes:**
+
+**[Resilience4j](https://resilience4j.readme.io/)** (Java; the successor to archived [Netflix Hystrix](https://github.com/Netflix/Hystrix))
+
+- **Primary function:** circuit breaker, bulkhead (semaphore / thread pool), rate limiter, retry, time limiter — composable.
+- **When we send you here:** JVM services **without** a mesh, or with a mesh but you still want **in-process** bulkheads (a sidecar cannot split your thread pools).
+- **What it is not:** Hystrix is **maintenance / archived**. Do not start a new Hystrix dashboard. [Sentinel](https://sentinelguard.io/) is the Alibaba-shaped cousin (flow rules, isolation).
+
+**[Polly](https://github.com/App-vNext/Polly)** ([.NET](https://dotnet.microsoft.com/)), **[opossum](https://github.com/nodeshift/opossum)** ([Node.js](https://nodejs.org/)), **[gobreaker](https://github.com/sony/gobreaker)** ([Go](https://go.dev/)), **[pybreaker](https://github.com/danielfm/pybreaker)** ([Python](https://www.python.org/)) — same pattern per language. Use them when there is **no** mesh, or for **application** fallbacks a proxy cannot know (serve cached catalog, skip recommendations).
+
+**[Envoy](https://www.envoyproxy.io/) outlier detection** and **[Istio](https://istio.io/) [DestinationRule](https://istio.io/latest/docs/reference/config/networking/destination-rule/)** (`outlierDetection`, `connectionPool`, `retries`) move the same levers into the sidecar. **[Linkerd](https://linkerd.io/) retries and timeouts** are the lighter version. A mesh circuit breaker **ejects an instance**; an in-process breaker **protects a thread pool**. You often want **both**: Envoy stops sending to a bad Pod; Resilience4j stops the handler from blocking when the whole *service* is dark.
+
+**Fallbacks** are product, not infrastructure: cached last price, "recommendations unavailable," a queue instead of a sync call (last chapter). A breaker that only throws 503 is still a failure — a **faster** one. Large-Scale Systems already distinguished fail-open vs fail-closed; here you pick per dependency (auth fail-closed; recs fail-open).
+
+**Working rule:** every **synchronous** dependency gets a **timeout, a retry budget, a breaker, and a bulkhead**. Draw them. A mesh is one place to put the first three; bulkheads still live in the process (pools) and in the platform ([Kubernetes](https://kubernetes.io/) [ResourceQuota](https://kubernetes.io/docs/concepts/policy/resource-quotas/) / [LimitRange](https://kubernetes.io/docs/concepts/policy/limit-range/), [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) is scale, not isolation). Retries without jitter and a budget are a self-DDoS.
+
+### Event-Driven Architecture
+
+**Event-driven architecture (EDA)** is a style: **facts happened**, and **reactions are decoupled in time**. Last chapter gave you the **pipes** (queue, log, pub/sub). This heading is when those pipes are the **integration**, not a thumbnail worker beside a monolith.
+
+A **command** is "please do this" (an API, a job). An **event** is "this happened" (`OrderPlaced`). Commands have an **addressee**. Events have **subscribers** who may not exist yet.
+
+```mermaid
+flowchart LR
+  api[Orders API]
+  log[(Log / bus)]
+  mail[Mail]
+  search[Search]
+  analytics[Analytics]
+  api -->|command: PlaceOrder| db[(Orders DB)]
+  api -->|event: OrderPlaced| log
+  log --> mail
+  log --> search
+  log --> analytics
+```
+
+*The API handles the command (and the local transaction + outbox). The bus carries the fact. Mail down must not fail PlaceOrder. That is EDA — if PlaceOrder HTTP-calls Mail, you drew a distributed monolith and labeled it events.*
+
+**Choreography vs orchestration** (you met this in Databases as sagas; here it is the estate):
+
+- **Choreography:** each service **reacts** to events and **emits** new ones. Few central brains. Failure mode: the process is **invisible** (who owns "order went stuck after Paid?"). Fine for fan-out facts (search, analytics, cache invalidate).
+- **Orchestration:** one **workflow** ([Temporal](https://temporal.io/), [AWS Step Functions](https://aws.amazon.com/step-functions/), [Camunda](https://camunda.com/), [Azure Durable Functions](https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-overview)) **commands** the steps. Failure mode: the orchestrator is a **hub**. Fine for "reserve → charge → confirm" where compensations must be named.
+
+```mermaid
+flowchart TB
+  subgraph choreo [Choreography]
+    e1[OrderPlaced] --> e2[PaymentCaptured]
+    e2 --> e3[InventoryReserved]
+  end
+  subgraph orch [Orchestration]
+    w[Workflow] --> p[Pay]
+    w --> i[Reserve]
+    w --> c[Confirm]
+  end
+```
+
+*Choreography is a trail of facts. Orchestration is a document that says what happens next. Pick per **process**, not per company. Checkout often orchestrates; "update the search index" choreographs.*
+
+**What EDA is not:**
+
+- Not "we have [Apache Kafka](https://kafka.apache.org/)." A log can still be a queue of commands (`SendEmail`). That is a task queue (last chapter).
+- Not a way to skip contracts. Events **are** an API: schema, compatibility, owners. [AsyncAPI](https://www.asyncapi.com/), [Apache Avro](https://avro.apache.org/) / [Protobuf](https://protobuf.dev/) with a registry ([Confluent Schema Registry](https://docs.confluent.io/platform/current/schema-registry/index.html), [AWS Glue Schema Registry](https://docs.aws.amazon.com/glue/latest/dg/schema-registry.html)). An unversioned JSON blob is an incident in slow motion.
+- Not always eventually consistent on purpose. If the user cannot leave the page until the projection exists, you are **synchronous** and should wait on the write model (or return 202 + poll — API Design).
+
+**Tools for the bus** — last chapter's catalog; the style pick is this chapter:
+
+- Facts many teams consume: [Apache Kafka](https://kafka.apache.org/), [Amazon Kinesis](https://aws.amazon.com/kinesis/), [Redpanda](https://www.redpanda.com/), [Apache Pulsar](https://pulsar.apache.org/).
+- Heterogeneous targets, rules, SaaS: [Amazon EventBridge](https://aws.amazon.com/eventbridge/), [Azure Event Grid](https://azure.microsoft.com/products/event-grid/), [Google Cloud Eventarc](https://cloud.google.com/eventarc).
+- Workflows that are not "a Kafka consumer with a switch": [Temporal](https://temporal.io/), [AWS Step Functions](https://aws.amazon.com/step-functions/).
+
+**Working rule:** EDA means **commands in, events out**, with an **outbox** so the fact does not vanish after the commit. Choreograph **notifications**; orchestrate **money and inventory**. If you cannot name the event, the owner, and the schema registry, you have a queue of anonymous JSON.
+
+### Event Sourcing
+
+**Event sourcing** ([Fowler, Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html), [Microsoft Azure Architecture — Event Sourcing](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing)) stores **the log of events as the system of record**. Current state is a **fold** of that log (in memory, in a snapshot, in a projection). It is **not** "we publish events to [Apache Kafka](https://kafka.apache.org/)." You can event-source one service and never share the log. You can publish events and still CRUD a row as source of truth.
+
+```mermaid
+flowchart LR
+  cmd[Command]
+  store[(Event store)]
+  fold[Fold / snapshot]
+  proj[Projections]
+  cmd --> store
+  store --> fold
+  store --> proj
+  fold -->|current state| cmd
+```
+
+*Append `OrderPlaced`, `ItemAdded`, `OrderPaid`. To know whether you can pay, fold the stream (or read a snapshot). Search and reporting read **projections**, not the raw stream, unless they are tiny.*
+
+**Why you would:**
+
+- **Audit is the product.** Ledgers, games, workflows where "how did we get here?" is a query. Payment Systems later will want a ledger; that is cousin-shaped, not a reason to event-source the blog.
+- **Time travel / rebuild.** New projection? Replay. Wrong projection? Replay. Retention is forever (or until a snapshot + truncated prefix you can still audit).
+- **Natural fit with CQRS** (next heading): write events, read tables built from them.
+
+**Why you would not:**
+
+- **CRUD that is actually CRUD.** A user changes their avatar. A row is fine. Event-sourcing that is a résumé.
+- **You wanted a bus.** Buy [Apache Kafka](https://kafka.apache.org/) for integration; keep [PostgreSQL](https://www.postgresql.org/) as source of truth. That is EDA, not event sourcing.
+- **You cannot version events.** The log is forever. Renaming `qty` without an upcaster is a production incident in 18 months.
+- **You need ad-hoc SQL today** and will not invest in projections. The event store is a bad warehouse (Big Data headings below).
+
+**The operational contract:**
+
+- **Stream per aggregate** (order 9's events are ordered). Optimistic concurrency: append expected version N.
+- **Snapshots** so you do not fold 2 million events on every command.
+- **Projections** are **derived** (Caching's word): rebuildable, lag is an SLO, a projection outage is not data loss if the log is the record.
+- **Idempotent subscribers** — at-least-once (last chapter) still applies when you publish the log outward.
+- **GDPR / erase.** "The log is immutable" meets "delete this user." You need a **redaction / crypto-shredding** story (hash the PII, throw the key) or event sourcing is not allowed on that aggregate. Security later; do not skip it here.
+
+**Stores and stacks:**
+
+**[EventStoreDB](https://www.eventstore.com/)**
+
+- **Primary function:** purpose-built event store: streams, subscriptions, projections.
+- **When we send you here:** event sourcing is actually the record, not a Kafka topic you hope to treat as one.
+- **What it is not:** not a general database, not a warehouse, not [Apache Kafka](https://kafka.apache.org/) (different replication, different consumers).
+
+**[Axon](https://axoniq.io/)** (JVM), **[Marten](https://martendb.io/)** ([.NET](https://dotnet.microsoft.com/) on [PostgreSQL](https://www.postgresql.org/)), **[EventSauce](https://eventsauce.io/)** ([PHP](https://www.php.net/)), **[RubyEventStore](https://railseventstore.org/)** — language stacks that keep events in Postgres or a dedicated store. **[Apache Kafka](https://kafka.apache.org/)** as the *only* store is a last resort: retention, compaction, and "delete this stream" are the wrong shape; people do it anyway and invent snapshots in [Amazon S3](https://aws.amazon.com/s3/). Prefer a real event store or Postgres events table + outbox to Kafka for **integration**.
+
+**Working rule:** event sourcing = **the log is the record**. EDA = **others may react**. You can have either, both, or neither. Do not store money only in a compacted topic you cannot redact.
+
+### CQRS
+
+**CQRS** (Command Query Responsibility Segregation; [Fowler, CQRS](https://martinfowler.com/bliki/CQRS.html), [Microsoft Azure Architecture — CQRS](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs)) splits **writes** (commands that change state) from **reads** (queries optimized for how you display). Two models, often two stores, often **eventual** read lag. It is **not** "a read replica" (Databases already gave you those — same model, copied). It is **not** required just because you event-source, and event sourcing is **not** required for CQRS.
+
+```mermaid
+flowchart LR
+  cmd[Command]
+  write[(Write model)]
+  bus[(Events)]
+  read[(Read model)]
+  query[Query]
+  cmd --> write --> bus --> read
+  query --> read
+```
+
+*PlaceOrder hits the write side (invariants, transactions). The list view hits a denormalized read store ([PostgreSQL](https://www.postgresql.org/) view, [Elasticsearch](https://www.elastic.co/elasticsearch), [Redis](https://redis.io/)). The lag between them is an SLO you say out loud.*
+
+**When CQRS pays for itself:**
+
+- **Read shape ≠ write shape.** Writes are "apply this invariant on an aggregate." Reads are a feed, a dashboard, a search document. Databases already denormalized; CQRS makes the denormalization a **separate application** with its own scale.
+- **Read/write scale diverge.** 1000× reads on catalog, rare writes. A [Redis](https://redis.io/) / CDN-backed read model (Caching) fed by events.
+- **Multiple read models.** Same writes, a SQL admin UI and an [OpenSearch](https://opensearch.org/) typeahead.
+
+**When CQRS is a tax:**
+
+- One admin CRUD app. A [PostgreSQL](https://www.postgresql.org/) table and an index will do. "We do CQRS" with two tables in the same DB and a trigger is a **view**. Call it a view.
+- You cannot tolerate lag and you have no plan (read-your-writes: read the write model for the actor's own command, or wait on a version).
+- The team will not own **two** failure modes (write up, projection behind).
+
+**Read-your-writes:** after `POST`, the next `GET` must see the change — or you tell the client `202` + a version token. UI that always hits the read replica / projection without a version is how users "lose" a submit. API Design's idempotency keys still apply on the command side.
+
+**Working rule:** CQRS is **two models** because **two questions**. Pair with event sourcing when the write model *is* a log. Pair with a boring table when it is not. Name the **lag SLO**. If you cannot, you wanted a replica, not CQRS.
+
+### Big Data Architecture Patterns
+
+**Big data** in this book is not "Hadoop on the résumé." It is paths where **volume, variety, or velocity** makes the **application database the wrong store** for the question: analytics, ML features (AI and ML Systems later), search indexes at crawl scale, logs. The application path still uses Databases and Storage. This heading is the **analytics / processing** estate you should be able to sketch without turning checkout into a cluster.
+
+```mermaid
+flowchart LR
+  src[App DBs / events / files]
+  ingest[Ingest]
+  proc[Batch / stream process]
+  serve[Serve: warehouse / lake / index]
+  src --> ingest --> proc --> serve
+```
+
+*Three boxes: land the data, process it, serve a question. [Apache Kafka](https://kafka.apache.org/) is often ingest, not the warehouse. [Amazon S3](https://aws.amazon.com/s3/) is often the lake, not the application ORM.*
+
+You will meet four sub-shapes: **batch vs stream**, **Lambda vs Kappa**, **lakes / warehouses / lakehouses**, and **MapReduce and what replaced the job you still draw as a shuffle**.
+
+#### Batch vs Stream Processing
+
+**Batch** processes a **bounded** dataset that already exists (last night's orders, a dump, a partition of files). **Stream** processes an **unbounded** sequence as it arrives (this event, then the next). Most estates need **both**: a nightly reconcile is batch; fraud on the payment event is stream.
+
+```mermaid
+flowchart TB
+  subgraph batch [Batch]
+    files[(Files / table snapshot)] --> job[Job]
+    job --> out1[(Table / files)]
+  end
+  subgraph stream [Stream]
+    ev[Event] --> op[Operator]
+    op --> ev2[Event / state]
+  end
+```
+
+*Batch: a start and a finish, you can replay the whole input. Stream: watermarks, state, late data. Neither is "real-time" by logo — stream can be 15 minutes behind; a batch can run every minute.*
+
+| | Batch | Stream |
+| --- | --- | --- |
+| Input | Bounded (files, snapshots, date partition) | Unbounded (topic, change log) |
+| Latency | Minutes to hours (can be shorter) | Seconds to minutes (can be worse if you mess up watermarks) |
+| Replay | Rerun the job on the same input | Rewind the log (retention) + rebuild state |
+| State | Usually in the output table | **Keyed state** in the processor ([Apache Flink](https://flink.apache.org/) [RocksDB](https://rocksdb.org/), [Kafka Streams](https://kafka.apache.org/documentation/streams/) stores) |
+| Default tools | [Apache Spark](https://spark.apache.org/), [dbt](https://www.getdbt.com/), [Apache Airflow](https://airflow.apache.org/) DAGs, [AWS Glue](https://aws.amazon.com/glue/), [BigQuery](https://cloud.google.com/bigquery) scheduled queries | [Apache Flink](https://flink.apache.org/), [Apache Spark Structured Streaming](https://spark.apache.org/streaming/), [Kafka Streams](https://kafka.apache.org/documentation/streams/), [Apache Beam](https://beam.apache.org/) on [Google Cloud Dataflow](https://cloud.google.com/dataflow), [Amazon Kinesis Data Analytics](https://aws.amazon.com/kinesis/data-analytics/) |
+| Use | ETL, daily metrics, backfill, ML training sets | Fraud, personalization features, ops dashboards, CDC materialization |
+
+**Watermarks and late data** are the stream tax: event-time vs processing-time. If you ignore them, your "1-minute count" is a lie when a mobile client uploads an hour late. Batch hides this because the partition is closed.
+
+**Working rule:** **stream** when the **decision** cannot wait for the next job (block a payment, update a counter the UI shows). **Batch** when **correctness of a closed period** matters (books, billing, ML labels). Do not run [Apache Spark](https://spark.apache.org/) on every HTTP request — that is an application path.
+
+#### Lambda and Kappa
+
+**Lambda architecture** ([Marz](http://nathanmarz.com/blog/how-to-beat-the-cap-theorem.html): batch layer + speed layer + serving layer) computes **accurate** views in batch and **fast approximate / incremental** views in stream, then **merges** at query time. **Kappa** ([Kreps, Questioning the Lambda Architecture](https://www.confluent.io/blog/questioning-the-lambda-architecture/)) says: **one** stream pipeline; when you need to recompute, **replay the log**. Same code, different offset.
+
+```mermaid
+flowchart TB
+  subgraph lambdaArch [Lambda]
+    src1[Source] --> batchL[Batch layer]
+    src1 --> speedL[Speed layer]
+    batchL --> servingL[Serving]
+    speedL --> servingL
+  end
+  subgraph kappaArch [Kappa]
+    src2[Log] --> streamL[One stream proc]
+    streamL --> servingK[Serving]
+    src2 -.->|replay| streamL
+  end
+```
+
+*Lambda: two codepaths that must agree (the merge is the design). Kappa: one codepath; the log must be **complete and replayable** enough to rebuild. If your log drops a day, Kappa cannot backfill without a second source — that is Lambda sneaking back.*
+
+| | Lambda | Kappa |
+| --- | --- | --- |
+| Codepaths | **Two** (batch + stream) that must match | **One** stream processor |
+| Recompute | Rerun batch on the lake | Replay the log (retention / lake as the log) |
+| Serving | Merge batch tables + speed views | Tables / stores fed only by the stream |
+| Tax | Double logic, merge bugs | Log completeness, replay cost, stream jobs that can actually reprocess history |
+| When we send you here | You already have a warehouse job **and** a fraud stream you cannot unify yet | CDC + [Apache Kafka](https://kafka.apache.org/) / [Apache Flink](https://flink.apache.org/) is the estate, lake is the archive |
+
+**Do not confuse this Lambda with [AWS Lambda](https://aws.amazon.com/lambda/).** The architecture predates the product. On a sketch, write **Lambda architecture** or **batch+speed+serving**. The function product is Cloud-Native, later in this chapter.
+
+**Working rule:** prefer **Kappa** when ingest is already a log you trust ([Debezium](https://debezium.io/) → [Apache Kafka](https://kafka.apache.org/) → [Apache Flink](https://flink.apache.org/) → warehouse). Keep **Lambda** when a nightly batch is the **legal** number and the stream is a **preview**. Two codepaths that disagree are an incident, not a pattern.
+
+#### Data Lakes, Warehouses, and Lakehouses
+
+Three **serving / storage** shapes for analytics. The application [PostgreSQL](https://www.postgresql.org/) is none of them.
+
+```mermaid
+flowchart LR
+  subgraph lake [Data lake]
+    raw[(Object storage raw)]
+  end
+  subgraph wh [Warehouse]
+    modeled[(Modeled tables)]
+  end
+  subgraph lh [Lakehouse]
+    tableFmt[Iceberg / Delta / Hudi]
+    raw2[(Object storage)]
+    tableFmt --> raw2
+  end
+```
+
+*Lake: cheap files. Warehouse: curated SQL. Lakehouse: table formats **on** the lake so you get transactions, schema, and time travel without copying every byte into a proprietary store — or you still copy, on purpose.*
+
+| | Data lake | Data warehouse | Lakehouse |
+| --- | --- | --- | --- |
+| Store | Object storage: [Amazon S3](https://aws.amazon.com/s3/), [Google Cloud Storage](https://cloud.google.com/storage), [Azure Data Lake Storage](https://azure.microsoft.com/products/storage/data-lake-storage) | [Snowflake](https://www.snowflake.com/), [BigQuery](https://cloud.google.com/bigquery), [Amazon Redshift](https://aws.amazon.com/redshift/), [Azure Synapse](https://azure.microsoft.com/products/synapse-analytics) | Table format on the lake: [Apache Iceberg](https://iceberg.apache.org/), [Delta Lake](https://delta.io/), [Apache Hudi](https://hudi.apache.org/), queried by [Databricks](https://www.databricks.com/), [Trino](https://trino.io/), [Snowflake](https://www.snowflake.com/) Iceberg tables, [BigQuery BigLake](https://cloud.google.com/bigquery/docs/biglake-intro) |
+| Schema | Schema-on-read (or chaos) | Schema-on-write, modeled ([dbt](https://www.getdbt.com/), star / vault) | Schema + evolution in the table format |
+| Jobs | Dump, then [AWS Glue](https://aws.amazon.com/glue/) / [Spark](https://spark.apache.org/) | ELT **inside** the warehouse | Stream + batch into tables; still ELT |
+| Use | Raw landing, ML blobs, "keep the JSON" | BI, governed metrics, joins analysts run | One copy for ML **and** BI when you are honest about governance |
+| Failure | A swamp of unexplained prefixes | A warehouse nobody can afford to land raw in | A table format nobody compacted |
+
+**Ingest:** [Debezium](https://debezium.io/) / [Fivetran](https://www.fivetran.com/) / [Airbyte](https://airbyte.com/) / [Kafka Connect](https://kafka.apache.org/documentation/#connect) into the lake or warehouse. **Orchestrate:** [Apache Airflow](https://airflow.apache.org/), [Dagster](https://dagster.io/), [Prefect](https://www.prefect.io/), [Amazon MWAA](https://aws.amazon.com/managed-workflows-for-apache-airflow/), [Google Cloud Composer](https://cloud.google.com/composer). **Transform:** [dbt](https://www.getdbt.com/). **Query engines on lakes:** [Trino](https://trino.io/) (née PrestoSQL; [Presto](https://prestodb.io/) still exists), [Apache Hive](https://hive.apache.org/) (legacy MR/Tez SQL), [Amazon Athena](https://aws.amazon.com/athena/).
+
+**Working rule:** **land raw** in a lake (partitioned, named, retained). **Serve humans** from a warehouse or lakehouse **tables** with owners. A lake without a catalog ([AWS Glue Data Catalog](https://docs.aws.amazon.com/glue/latest/dg/catalog-and-crawler.html), [Unity Catalog](https://www.databricks.com/product/unity-catalog), [Google Dataplex](https://cloud.google.com/dataplex)) is a bucket. Do not point checkout at [Snowflake](https://www.snowflake.com/).
+
+#### MapReduce and Its Descendants
+
+**MapReduce** ([Dean & Ghemawat](https://research.google/pubs/mapreduce-simplified-data-processing-on-large-clusters/), [Apache Hadoop MapReduce](https://hadoop.apache.org/docs/current/hadoop-mapreduce-client/hadoop-mapreduce-client-core/MapReduceTutorial.html)) is **map** (record → key/value) → **shuffle** (group by key across the cluster) → **reduce** (per-key aggregate). [HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) was the filesystem (Databases already named it). You still **draw** a shuffle when you explain why a group-by is expensive. You rarely **submit** a raw MR job in 2026.
+
+```mermaid
+flowchart LR
+  in[(Splits)] --> map[Map]
+  map --> shuffle[Shuffle / sort]
+  shuffle --> red[Reduce]
+  red --> out[(Output)]
+```
+
+*The expensive hop is the shuffle: network + sort. Every descendant still pays it when you `GROUP BY` the whole dataset. Partitioning (same as shard keys) is how you do not.*
+
+**What you actually run:**
+
+**[Apache Spark](https://spark.apache.org/)**
+
+- **Primary function:** DAG of in-memory stages; batch **and** Structured Streaming; SQL, DataFrame, MLlib. The default "big compute" replacement for MR.
+- **When we send you here:** lake jobs, joins, backfills, feature batches. Hosted: [Amazon EMR](https://aws.amazon.com/emr/), [Google Cloud Dataproc](https://cloud.google.com/dataproc), [Azure HDInsight](https://azure.microsoft.com/products/hdinsight) / [Azure Databricks](https://azure.microsoft.com/products/databricks), [Databricks](https://www.databricks.com/).
+- **What it is not:** not an OLTP database. Not a stream processor with the same story as [Apache Flink](https://flink.apache.org/) for low-latency keyed state (Spark Streaming is micro-batch unless you know the mode).
+
+**[Apache Flink](https://flink.apache.org/)**
+
+- **Primary function:** true streaming (event time, watermarks, exactly-once sinks with care), batch as bounded streams.
+- **When we send you here:** Kappa pipelines, CDC → serving store, jobs that must not be "a Spark micro-batch we called real-time."
+- **What it is not:** not cheaper Spark. Different ops (checkpoints, savepoints). [Amazon Managed Service for Apache Flink](https://aws.amazon.com/managed-service-apache-flink/) / [Ververica](https://www.ververica.com/) when you will not run JobManagers yourself.
+
+**[Apache Beam](https://beam.apache.org/)**
+
+- **Primary function:** portable pipeline API; runners: [Google Cloud Dataflow](https://cloud.google.com/dataflow), Flink, Spark.
+- **When we send you here:** you want one codepath on Google Cloud, or portability is a real constraint.
+- **What it is not:** not a runner. A Beam job with no runner is a library.
+
+**Also in the family:** [Apache Tez](https://tez.apache.org/) ([Apache Hive](https://hive.apache.org/)'s DAG, Hadoop-era), [Apache Storm](https://storm.apache.org/) (legacy stream; prefer [Apache Flink](https://flink.apache.org/)), [Kafka Streams](https://kafka.apache.org/documentation/streams/) / [ksqlDB](https://ksqldb.io/) (stream processing **in** the Kafka ecosystem, no separate cluster if the job fits). [Hadoop](https://hadoop.apache.org/) today is often **[HDFS](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html) + [YARN](https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/YARN.html) nostalgia** on [EMR](https://aws.amazon.com/emr/); new lakes are **object storage + [Spark](https://spark.apache.org/)/[Flink](https://flink.apache.org/)/[Trino](https://trino.io/)**.
+
+**Working rule:** draw **MapReduce** to explain a shuffle. Run **Spark** for batch, **Flink** (or Beam on Dataflow) for serious streams. If the "MapReduce cluster" on the sketch is the checkout path, you are in the wrong chapter.
+
+### Cloud-Native Architecture
+
+**Cloud-native** ([CNCF](https://www.cncf.io/), [CNCF Cloud Native Definition](https://github.com/cncf/toc/blob/main/DEFINITION.md), [CNCF Landscape](https://landscape.cncf.io/)) is not "we rent [Amazon EC2](https://aws.amazon.com/ec2/)." It is **containerized, dynamically orchestrated, loosely coupled** services that **expect** failure and **use** the platform's building blocks (managed databases, queues, identity) instead of pretending the cloud is a colo with an API. The [Twelve-Factor App](https://12factor.net/) is the older, still-useful checklist for **stateless, config-injected, disposable** processes — cloud-native's application contract.
+
+```mermaid
+flowchart TB
+  users[Users]
+  edge[DNS / LB / CDN]
+  orch[Orchestrator]
+  svc[Stateless services]
+  managed[(Managed data / queue)]
+  users --> edge --> orch --> svc --> managed
+```
+
+*The app processes are cattle: many replicas, no unique snowflake disk. State lives in managed stores. If you SSH into a container to edit config, you are not doing this — you are in a VM with extra steps.*
+
+Cloud-native **does not require** microservices. A modular monolith on [Kubernetes](https://kubernetes.io/) with a managed [Amazon RDS](https://aws.amazon.com/rds/) is cloud-native. Forty services on pet VMs with config in `/etc` on each box are not.
+
+#### VMs vs Containers
+
+A **virtual machine** virtualizes **hardware**: its own kernel, its own OS, a disk image. A **container** virtualizes the **process**: shared kernel, isolated user space ([cgroups](https://docs.kernel.org/admin-guide/cgroup-v2.html), namespaces), an image that is layers + a command. [Docker](https://www.docker.com/) made the image UX; [containerd](https://containerd.io/) / [CRI-O](https://cri-o.io/) are what [Kubernetes](https://kubernetes.io/) actually runs; [Podman](https://podman.io/) is daemonless Docker-compatible UX.
+
+```mermaid
+flowchart TB
+  subgraph vm [VM]
+    hv[Hypervisor]
+    g1[Guest OS]
+    g2[Guest OS]
+    hv --> g1
+    hv --> g2
+  end
+  subgraph ctr [Containers]
+    host[Host kernel]
+    c1[Container]
+    c2[Container]
+    host --> c1
+    host --> c2
+  end
+```
+
+*VMs: strong isolation, minutes to boot, full OS tax. Containers: seconds, smaller, **same kernel** — a kernel CVE is a fleet CVE. That isolation difference is why people still put **tenants** in VMs or [Firecracker](https://firecracker-microvm.github.io/) microVMs ([AWS Lambda](https://aws.amazon.com/lambda/), [AWS Fargate](https://aws.amazon.com/fargate/) under the hood).*
+
+| | VM | Container |
+| --- | --- | --- |
+| Isolation | Hardware / hypervisor ([Amazon EC2](https://aws.amazon.com/ec2/), [Google Compute Engine](https://cloud.google.com/compute), [Azure Virtual Machines](https://azure.microsoft.com/products/virtual-machines)) | Process + namespaces; microVM if you need more |
+| Image | Disk ([AMI](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html), machine image) | Layers ([OCI](https://opencontainers.org/)) |
+| Boot | Minutes (can be faster with snapshots) | Seconds |
+| Density | One app per VM is common | Many pods per node |
+| Use | Strong isolation, Windows, custom kernels, "lift and shift" | App units on [Kubernetes](https://kubernetes.io/) / [Amazon ECS](https://aws.amazon.com/ecs/) / [Cloud Run](https://cloud.google.com/run) |
+| State | Disk you will treat as cattle or regret | **No unique disk** — volumes are attached, not the identity of the replica |
+
+**[AWS Lambda](https://aws.amazon.com/lambda/) / [Google Cloud Functions](https://cloud.google.com/functions) / [Azure Functions](https://azure.microsoft.com/products/functions)** are **functions as a service**: the platform is the orchestrator; you ship a zip or an image. **[Google Cloud Run](https://cloud.google.com/run)** / **[AWS App Runner](https://aws.amazon.com/apprunner/)** / **[Azure Container Apps](https://azure.microsoft.com/products/container-apps)** are **containers without you running the cluster**. Use them when the unit of scale is a request and you will not need a mesh on day one.
+
+**Working rule:** **containers** for app processes you want to schedule densely. **VMs** (or microVMs) when the isolation boundary **is** the product (untrusted code, a kernel, a lift-and-shift that is not worth replatforming this quarter). Do not run one container per VM "for Kubernetes" and call it density.
+
+#### Orchestration, Twelve-Factor, and Stateless Services
+
+**Orchestration** is the control loop that **places, heals, and scales** processes: desired replicas, health checks, rolling deploys. **[Kubernetes](https://kubernetes.io/)** is the default: Deployment / ReplicaSet / Pod, Service, [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/), [PDB](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/). **[Amazon ECS](https://aws.amazon.com/ecs/)** is AWS's own scheduler (often with [AWS Fargate](https://aws.amazon.com/fargate/) so there is no node). **[HashiCorp Nomad](https://www.nomadproject.io/)** schedules more than containers. **[Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift)** is Kubernetes with a product around it. Hosted Kubernetes: [Amazon EKS](https://aws.amazon.com/eks/), [Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine), [Azure Kubernetes Service](https://azure.microsoft.com/products/kubernetes-service).
+
+```mermaid
+flowchart LR
+  want[Desired: 3 replicas]
+  orch[Orchestrator]
+  n1[Node]
+  n2[Node]
+  want --> orch
+  orch --> n1
+  orch --> n2
+  orch -.->|pod died| orch
+```
+
+*You declare 3. The loop makes 3. A dead replica is a replace, not an SSH. Health checks (Networking) are how the loop knows. Without a readiness probe, you rolled out a broken image to 100%.*
+
+**[Twelve-Factor](https://12factor.net/)** ([Heroku](https://www.heroku.com/), 2011) still maps to the sketch:
+
+| Factor (short) | What you do |
+| --- | --- |
+| Codebase / dependencies | One repo per deployable; [Go modules](https://go.dev/ref/mod) / lockfiles, not "what's on the box" |
+| Config | Env vars / [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/) / [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/) / [HashiCorp Vault](https://www.vaultproject.io/) — not baked into the image |
+| Backing services | URL to [Amazon RDS](https://aws.amazon.com/rds/), [Amazon SQS](https://aws.amazon.com/sqs/), [Redis](https://redis.io/) — attach/detach without code change |
+| Processes | **Stateless** processes; state in backing services |
+| Port binding / concurrency | Process listens a port; scale **out** (Horizontal Scaling) |
+| Disposability | Fast start, trap SIGTERM, drain (this is a **readiness** + **preStop** story) |
+| Logs | Stdout; the platform ships to the sink (Observability later) |
+| Dev/prod parity | Same image, different config — [Docker](https://www.docker.com/) made this cheap |
+
+**Stateless** means **any replica can handle the next request**. Session in [Redis](https://redis.io/) or a JWT (Security later), uploads to [Amazon S3](https://aws.amazon.com/s3/), jobs in [Amazon SQS](https://aws.amazon.com/sqs/). Sticky sessions (Networking) are how you fake this and then lose a node. [WebSockets](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) still need a backplane (last chapter) — the **connection** is state; the **process** should not be the only copy of history.
+
+**[Helm](https://helm.sh/)** packages Kubernetes YAML. **[Kustomize](https://kustomize.io/)** overlays it. They are not architecture; they are how you stop pasting manifests. A chart that installs [Istio](https://istio.io/) + 40 services does not make the cut real.
+
+**Working rule:** **desired state + health + stateless processes + config outside the image.** If a replica has a unique disk you cannot throw away, it is a **stateful set** ([Kubernetes StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/), a database). Run those as **managed** when you can (next heading), not as a pet Pod named `postgres-0` with no backup SLO.
+
+#### Managed Building Blocks vs Running Your Own
+
+Every box on the sketch is a choice: **pay a vendor to run the control plane** or **run it yourself**. Cloud-native prefers **managed for undifferentiated heavy lifting** (Postgres, Kafka, Redis, the Kubernetes control plane) and **self-run when the box *is* the product** (you sell a database, you need a fork, the vendor SLO is the wrong shape).
+
+```mermaid
+flowchart TB
+  q{Is this box the product?}
+  q -->|yes| own[Run your own, own the pager]
+  q -->|no| mng[Managed: RDS, MSK, ElastiCache, EKS]
+  q -->|no, but we have a platform team and a reason| both[Operator on our cluster]
+```
+
+*A reason looks like: latency to a region they do not offer, a compliance boundary, a cost model at your scale, or a feature they will not enable. "We know Kafka" is not a reason by itself — it is a hobby with a pager.*
+
+| Building block | Managed default | Run-your-own when |
+| --- | --- | --- |
+| [PostgreSQL](https://www.postgresql.org/) / [MySQL](https://www.mysql.com/) | [Amazon RDS](https://aws.amazon.com/rds/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/), [Cloud SQL](https://cloud.google.com/sql), [Azure Database for PostgreSQL](https://azure.microsoft.com/products/postgresql) | Extensions they forbid, exotic failover, you **are** a database company |
+| [Redis](https://redis.io/) / [Valkey](https://valkey.io/) | [Amazon ElastiCache](https://aws.amazon.com/elasticache/), [Memorystore](https://cloud.google.com/memorystore), [Azure Cache for Redis](https://azure.microsoft.com/products/cache) | Custom modules, cost at huge RAM, you already operate it well |
+| [Apache Kafka](https://kafka.apache.org/) | [Amazon MSK](https://aws.amazon.com/msk/), [Confluent Cloud](https://www.confluent.io/confluent-cloud/), [Azure Event Hubs](https://azure.microsoft.com/products/event-hubs) (Kafka protocol) | You need a fork ([Redpanda](https://www.redpanda.com/)) or clusters the vendor will not shape |
+| [Kubernetes](https://kubernetes.io/) control plane | [Amazon EKS](https://aws.amazon.com/eks/), [GKE](https://cloud.google.com/kubernetes-engine), [AKS](https://azure.microsoft.com/products/kubernetes-service) | Air-gapped, you sell a platform |
+| Object storage | [Amazon S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage), [Azure Blob Storage](https://azure.microsoft.com/products/storage/blobs) | Almost never — [MinIO](https://min.io/) for edge / local |
+| Warehouse | [Snowflake](https://www.snowflake.com/), [BigQuery](https://cloud.google.com/bigquery), [Redshift](https://aws.amazon.com/redshift/) | You already standardized on [Trino](https://trino.io/) on your lake and mean it |
+
+**Operators** ([Kubernetes Operators](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/), [CloudNativePG](https://cloudnative-pg.io/), [Strimzi](https://strimzi.io/)) are "run your own **on** the cluster with a control loop." They are not "managed." You still patch, backup, and page. Use them when the platform team's job **is** that data plane.
+
+**Cost and lock-in** are real and are not a personality. Managed [Amazon SQS](https://aws.amazon.com/sqs/) is operationally cheaper than a pet [RabbitMQ](https://www.rabbitmq.com/) until it is not (features, latency, cost at your volume). Draw the **exit**: [PostgreSQL](https://www.postgresql.org/) on RDS is still Postgres; a vendor-only stored procedure is a lock. Prefer open protocols (Postgres, Kafka API, Redis, S3 API, [OCI](https://opencontainers.org/) images).
+
+**Working rule:** **managed by default** for stores and queues this book already named. **Run your own** when you can name the SLO the vendor cannot meet — then budget the humans. A [CNCF Landscape](https://landscape.cncf.io/) screenshot is not a design.
+
+### Summary: Architectural Patterns, Microservices, and Cloud-Native Architecture
+
+Architecture is **boundaries you can operate**, not a logo slide. **N-tier** is processes; **layers** are dependency direction ([hexagonal](https://alistair.cockburn.us/hexagonal-architecture/) ports face inward). Default **modular monolith**; **microservices** ([Fowler](https://martinfowler.com/articles/microservices.html)) when a cut has its **own data, SLO, and on-call** — not when you have [Kubernetes](https://kubernetes.io/). **SOA** put intelligence in the ESB; microservices keep **dumb pipes**. A **distributed monolith** is many processes with one blast radius — a mesh will not save it. **Discovery** is [Kubernetes](https://kubernetes.io/) DNS / [Consul](https://www.consul.io/) / [Cloud Map](https://aws.amazon.com/cloud-map/); a **mesh** ([Istio](https://istio.io/), [Linkerd](https://linkerd.io/), [Envoy](https://www.envoyproxy.io/), [Cilium](https://cilium.io/)) owns mTLS and retries. Every sync hop gets **timeout, retry budget, circuit breaker, bulkhead** ([Resilience4j](https://resilience4j.readme.io/), sidecar outlier detection). **EDA** is commands in, versioned events out (outbox); choreograph notifications, orchestrate money ([Temporal](https://temporal.io/), [Step Functions](https://aws.amazon.com/step-functions/)). **Event sourcing** is the log as record ([EventStoreDB](https://www.eventstore.com/), [Axon](https://axoniq.io/)); **CQRS** is two models and a lag SLO. **Big data:** batch vs stream ([Spark](https://spark.apache.org/), [Flink](https://flink.apache.org/), [Beam](https://beam.apache.org/)); **Lambda vs Kappa**; lake / warehouse / lakehouse ([Iceberg](https://iceberg.apache.org/), [Delta Lake](https://delta.io/), [Snowflake](https://www.snowflake.com/), [BigQuery](https://cloud.google.com/bigquery)); MapReduce as the shuffle you still draw. **Cloud-native** ([CNCF](https://www.cncf.io/), [Twelve-Factor](https://12factor.net/)): containers ([Docker](https://www.docker.com/), [containerd](https://containerd.io/)), orchestration ([Kubernetes](https://kubernetes.io/), [Amazon EKS](https://aws.amazon.com/eks/), [GKE](https://cloud.google.com/kubernetes-engine), [AKS](https://azure.microsoft.com/products/kubernetes-service), [Amazon ECS](https://aws.amazon.com/ecs/)), **stateless** processes, **managed** stores by default. Draw the cut in [Excalidraw](https://excalidraw.com/). Next is **Distributed Systems**.
